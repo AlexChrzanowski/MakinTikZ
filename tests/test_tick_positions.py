@@ -1,7 +1,7 @@
 """Test tick positioning."""
 
 import itertools
-
+import makintikz
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -33,3 +33,51 @@ def plot() -> Figure:
 
 def test() -> None:
     assert_equality(plot, __file__[:-3] + "_reference.tex")
+
+
+def test_hidden_ticks_keep_labels() -> None:
+    fig, ax = plt.subplots()
+
+    ax.plot([0, 1], [0, 1])
+
+    # Hide x-axis tick marks, but keep labels visible
+    ax.tick_params(
+        axis="x",
+        which="both",
+        bottom=False,
+        top=False,
+        labelbottom=True,
+    )
+
+    code = makintikz.get_tikz_code(
+        include_disclaimer=False,
+        float_format=".8g",
+    )
+
+    plt.close("all")
+
+    assert "xtick style={draw=none}" in code
+    assert "xmajorticks=false" not in code
+
+def test_hidden_ticks_and_labels_disable_ticks() -> None:
+    fig, ax = plt.subplots()
+
+    ax.plot([0, 1], [0, 1])
+
+    # Hide both x-axis tick marks and labels
+    ax.tick_params(
+        axis="x",
+        which="both",
+        bottom=False,
+        top=False,
+        labelbottom=False,
+    )
+
+    code = makintikz.get_tikz_code(
+        include_disclaimer=False,
+        float_format=".8g",
+    )
+
+    plt.close("all")
+
+    assert "xmajorticks=false" in code
