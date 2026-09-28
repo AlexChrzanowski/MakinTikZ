@@ -33,6 +33,7 @@ class TikzData:
     table_row_sep: str = "\n"
     base_name: str = ""
     current_axis_title: str = ""
+    power_limits: list[int] | None = None
 
     rel_data_path: Path | None = None
     output_dir: Path = Path()

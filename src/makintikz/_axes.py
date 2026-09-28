@@ -423,7 +423,6 @@ class MyAxes:
 
         orientation = colorbar.orientation
         limits = colorbar.mappable.get_clim()
-        powlimits = _get_powerlimits(self.obj)
 
         if orientation == "horizontal":
             self.data.current_axis_options.add("colorbar horizontal")
@@ -455,7 +454,6 @@ class MyAxes:
                     "minor x",
                     colorbar_ticks_minor,
                     colorbar_ticklabels_minor,
-                    limits=powlimits,
                 )
             )
             # Horizontal colorbar label is on the x-axis
@@ -494,7 +492,6 @@ class MyAxes:
                     "minor y",
                     colorbar_ticks_minor,
                     colorbar_ticklabels_minor,
-                    limits=powlimits,
                 )
             )
             colorbar_styles.append("ylabel={" + colorbar_ylabel + "}")
@@ -550,9 +547,11 @@ class MyAxes:
         force_x_ticklabels = _uses_plain_scalar_tick_format(self.obj, "x")
         force_y_ticklabels = _uses_plain_scalar_tick_format(self.obj, "y")
 
+        powlimits = _get_powerlimits(self.obj)
+        self.data.power_limits = powlimits
+
         # Limits for plain notation. If the exponent (order of magnitude) of the ticks
         # are below the lower limit or above the upper limit, then uses sci notation.
-        powlimits = _get_powerlimits(self.obj)
 
         self.data.current_axis_options.update(
             _get_ticks(
@@ -561,7 +560,6 @@ class MyAxes:
                 self.obj.get_xticks(),
                 self.obj.get_xticklabels(),
                 force_label_required=force_x_ticklabels,
-                limits=powlimits,
             )
         )
         self.data.current_axis_options.update(
@@ -571,7 +569,6 @@ class MyAxes:
                 self.obj.get_yticks(),
                 self.obj.get_yticklabels(),
                 force_label_required=force_y_ticklabels,
-                limits=powlimits,
             )
         )
         self.data.current_axis_options.update(
@@ -580,7 +577,6 @@ class MyAxes:
                 "minor x",
                 self.obj.get_xticks(minor=True),
                 self.obj.get_xticklabels(minor=True),
-                limits=powlimits,
             )
         )
         self.data.current_axis_options.update(
@@ -589,7 +585,6 @@ class MyAxes:
                 "minor y",
                 self.obj.get_yticks(minor=True),
                 self.obj.get_yticklabels(minor=True),
-                limits=powlimits,
             )
         )
 
@@ -782,12 +777,12 @@ def _get_ticks(
     ticklabels: list,
     *,
     force_label_required: bool = False,
-    limits: list[int] | None,
 ) -> list[str]:
     """Gets a {'x','y'}, a number of ticks and ticks labels.
 
     Returns the necessary axis options for the given configuration.
     """
+    limits = data.power_limits
     axis_options = []
     is_minor = "minor" in xy
     is_label_required = force_label_required or _is_label_required(ticks, ticklabels)
@@ -822,7 +817,6 @@ def _get_ticks(
             # Keep plain scalar tick formatting from matplotlib by disabling
             # PGFPlots' tick scaling multiplier (e.g., "x 10^10" label).
             if force_label_required and not data.strict:
-                print(force_label_required)
                 axis_options.append(f"scaled {xy} ticks=false")
         if limits != None:
             axis_options.append(f"scale ticks below exponent={limits[0] + 1}")
