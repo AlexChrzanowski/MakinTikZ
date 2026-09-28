@@ -34,6 +34,57 @@ def _escape_unescaped_specials(text: str) -> str:
     return "".join(out)
 
 
+def _is_axes_title(obj: Text) -> bool:
+    """Axes titles are handled by the axis code, not as free text."""
+    axes = obj.axes
+    if axes is None:
+        return False
+    titles = (
+        axes.title,
+        getattr(axes, "_left_title", None),
+        getattr(axes, "_right_title", None),
+    )
+    return obj in titles
+
+
+def _text_scaling(data: TikzData, obj: Text, *, is_figure_label: bool) -> float:
+    if is_figure_label:
+        # Figure-level labels should match document text size.
+        return 1.0
+    size = obj.get_fontsize()
+    if isinstance(size, str):
+        size = font_scalings[size]
+    # without the factor 0.5, the fonts are too big most of the time.
+    return 0.5 * size / data.font_size
+
+
+_BOLD_WEIGHT_NAMES = frozenset(
+    {"semibold", "demibold", "demi", "bold", "heavy", "extra bold", "black"}
+)
+_MIN_WEIGHT_BOLD = 550
+
+
+def _is_bold(weight: str | int) -> bool:
+    # get_weights returns a numeric value in the range 0-1000 or a name
+    # (see matplotlib/font_manager.py)
+    if isinstance(weight, int):
+        return weight > _MIN_WEIGHT_BOLD
+    return weight in _BOLD_WEIGHT_NAMES
+
+
+def _text_style(obj: Text) -> list[str]:
+    style: list[str] = []
+    fontstyle = obj.get_fontstyle()
+    if fontstyle == "italic":
+        style.append("\\itshape")
+    elif fontstyle != "normal":
+        msg = f"Object style '{fontstyle}' not implemented."
+        raise NotImplementedError(msg)
+    if _is_bold(obj.get_fontweight()):
+        style.append("\\bfseries")
+    return style
+
+
 def draw_text(data: TikzData, obj: Text) -> list[str]:
     """Paints text on the graph.
 
@@ -45,17 +96,15 @@ def draw_text(data: TikzData, obj: Text) -> list[str]:
     ff = data.float_format
     tikz_pos = _get_tikz_pos(data, obj, content)
 
+    placement = _figure_label_placement(obj)
+    if placement is not None:
+        bbox_side, _node_anchor, (dx, dy) = placement
+        gap = _FIGURE_LABEL_GAP_PT
+        tikz_pos = f"($(current bounding box.{bbox_side})+({dx * gap:{ff}}pt,{dy * gap:{ff}}pt)$)"
+
     text = obj.get_text()
 
-    if (
-        obj.axes is not None
-        and obj
-        in (
-            obj.axes.title,
-            getattr(obj.axes, "_left_title", None),
-            getattr(obj.axes, "_right_title", None),
-        )
-    ) or text == "":
+    if _is_axes_title(obj) or text == "":
         return content
 
     size = obj.get_fontsize()
@@ -63,8 +112,8 @@ def draw_text(data: TikzData, obj: Text) -> list[str]:
         size = font_scalings[size]
     bbox = obj.get_bbox_patch()
     converter = mpl.colors.ColorConverter()
-    # without the factor 0.5, the fonts are too big most of the time.
-    scaling = 0.5 * size / data.font_size
+
+    scaling = _text_scaling(data, obj, is_figure_label=placement is not None)
     if scaling != 1.0:
         properties.append(f"scale={scaling:{ff}}")
 
@@ -73,30 +122,14 @@ def draw_text(data: TikzData, obj: Text) -> list[str]:
 
     ha = obj.get_horizontalalignment()
     va = obj.get_verticalalignment()
-    anchor = _transform_positioning(ha, va)
+    anchor = f"anchor={placement[1]}" if placement else _transform_positioning(ha, va)
     if anchor:
         properties.append(anchor)
     col, _ = _color.mpl_color2xcolor(data, converter.to_rgb(obj.get_color()))
     properties.append(f"text={col}")
     properties.append(f"rotate={obj.get_rotation():.1f}")
 
-    if obj.get_fontstyle() == "italic":
-        style.append("\\itshape")
-    elif obj.get_fontstyle() != "normal":
-        msg = f"Object style '{obj.get_fontstyle()}' not implemented."
-        raise NotImplementedError(msg)
-
-    # get_weights returns a numeric value in the range 0-1000 or one of (value in parenthesis)
-    # `ultralight` (100) `light` (200), `normal` (400), `regular` (400), `book` (400),
-    # `medium` (500), `roman` (500), `semibold` (600), `demibold` (600), `demi` (600), `bold` (700),
-    # `heavy` (800), `extra bold` (800), `black` (900)
-    # (from matplotlib/font_manager.py)
-    weight = obj.get_fontweight()
-    min_weight_bold = 550
-    if weight in ["semibold", "demibold", "demi", "bold", "heavy", "extra bold", "black"] or (
-        isinstance(weight, int) and weight > min_weight_bold
-    ):
-        style.append("\\bfseries")
+    style = _text_style(obj)
 
     text = _escape_unescaped_specials(text)
 
@@ -251,6 +284,37 @@ def _annotation(data: TikzData, obj: Annotation, content: list[str]) -> str | tu
         the_arrow = f"\\draw[{style}] {text_pos} -- {xy_pos};\n"
         content.append(the_arrow)
     return text_pos
+
+
+# name on Figure -> (default position, bbox side, node anchor, outward direction)
+_FIGURE_LABELS = {
+    "_suptitle": ((0.5, 0.98), "north", "south", (0, 1)),
+}
+_FIGURE_LABEL_GAP_PT = 4.0
+
+
+def _figure_label_placement(obj: Text) -> tuple[str, str, tuple[int, int]] | None:
+    """Detect fig.suptitle at their automatic position.
+
+    Returns (bbox side, node anchor, outward direction) or None.
+    """
+    fig = obj.figure
+    if fig is None:
+        return None
+    for attr, (default, bbox_side, node_anchor, direction) in _FIGURE_LABELS.items():
+        if obj is not getattr(fig, attr, None):
+            continue
+        pos = obj.get_position()
+        # `_autopos` is set by mpl when x/y were not given (layout engines may
+        # then move the text), so fall back to comparing with the defaults.
+        nearly_zero = 1e-9
+        at_default = getattr(obj, "_autopos", False) or all(
+            abs(a - b) < nearly_zero for a, b in zip(pos, default, strict=True)
+        )
+        if not at_default:
+            return None  # user chose a custom position: keep existing behavior
+        return bbox_side, node_anchor, direction
+    return None
 
 
 def _bbox(data: TikzData, bbox: FancyBboxPatch, properties: list[str], scaling: float) -> None:
