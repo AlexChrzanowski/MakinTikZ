@@ -445,9 +445,7 @@ class MyAxes:
             # they might not reflect the current state.
             colorbar_ticklabels = colorbar.ax.get_xticklabels()
             colorbar_ticklabels_minor = colorbar.ax.get_xticklabels(minor=True)
-            colorbar_styles.extend(
-                _get_ticks(self.data, "x", colorbar_ticks, colorbar_ticklabels, limits=powlimits)
-            )
+            colorbar_styles.extend(_get_ticks(self.data, "x", colorbar_ticks, colorbar_ticklabels))
             colorbar_styles.extend(
                 _get_ticks(
                     self.data,
@@ -483,9 +481,7 @@ class MyAxes:
             colorbar_ticklabels = colorbar.ax.get_yticklabels()
             colorbar_ylabel = colorbar.ax.get_ylabel()
             colorbar_ticklabels_minor = colorbar.ax.get_yticklabels(minor=True)
-            colorbar_styles.extend(
-                _get_ticks(self.data, "y", colorbar_ticks, colorbar_ticklabels, limits=powlimits)
-            )
+            colorbar_styles.extend(_get_ticks(self.data, "y", colorbar_ticks, colorbar_ticklabels))
             colorbar_styles.extend(
                 _get_ticks(
                     self.data,
@@ -782,7 +778,6 @@ def _get_ticks(
 
     Returns the necessary axis options for the given configuration.
     """
-    limits = data.power_limits
     axis_options = []
     is_minor = "minor" in xy
     is_label_required = force_label_required or _is_label_required(ticks, ticklabels)
@@ -818,7 +813,8 @@ def _get_ticks(
             # PGFPlots' tick scaling multiplier (e.g., "x 10^10" label).
             if force_label_required and not data.strict:
                 axis_options.append(f"scaled {xy} ticks=false")
-        if limits != None:
+        limits = data.power_limits
+        if limits is not None:
             axis_options.append(f"scale ticks below exponent={limits[0] + 1}")
             axis_options.append(f"scale ticks above exponent={limits[1] - 1}")
     return axis_options
@@ -1191,6 +1187,7 @@ def _try_f2i(x: float) -> float:
 
 def _get_powerlimits(obj: Axes) -> list[int] | None:
     """Gets the limits used for scientific/plain notation.
+
     If the formatter isn't a ScalarFormatter, it won't have _powerlimits,
     so returns None.
     """
@@ -1201,4 +1198,4 @@ def _get_powerlimits(obj: Axes) -> list[int] | None:
 
     if not isinstance(formatter, ScalarFormatter):
         return None
-    return getattr(formatter, "_powerlimits")
+    return getattr(formatter, "_powerlimits", None)

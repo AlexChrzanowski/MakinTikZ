@@ -93,7 +93,7 @@ def get_tikz_code(  # noqa: PLR0913
     table_row_sep: str = "\n",
     flavor: str = "latex",
     legend_title_hspace: str = "-.6cm",
-    limits: list[int] = None
+    power_limits: list[int] | None = None,
 ) -> str:
     r"""Main function that converts a matplotlib Figure to tikz.
 
@@ -189,6 +189,13 @@ def get_tikz_code(  # noqa: PLR0913
     :param table_row_sep: Row separator for table data. Default is ```"\\n"```.
     :type table_row_sep: str
 
+    :param legend_title_hspace:
+        :type legend_title_hspace: str
+
+    :param power_limits: Sets boundaries for plain notation, if using style='sci'.
+                         Format as [lower, upper].
+        :type power_limits: list[int]
+
     :param flavor: TeX flavor of the output code.
                    Supported are ``"latex"`` and``"context"``.
                    Default is ``"latex"``.
@@ -236,6 +243,7 @@ def get_tikz_code(  # noqa: PLR0913
         data.extra_tikzpicture_parameters = set(extra_tikzpicture_parameters)
     if extra_lines_start:
         data.extra_lines_start = extra_lines_start
+    data.power_limits = power_limits
 
     _set_filepath(data, filepath)
 
@@ -329,7 +337,7 @@ def _generate_code(data: TikzData, content: list) -> str:
     if coldefs:
         code += "\n".join(coldefs) + "\n\n"
 
-    pgfkeys = _get_pgfkeys(data, data.strict)
+    pgfkeys = _get_pgfkeys(data)
     if pgfkeys:
         code += pgfkeys + "\n\n"
 
@@ -357,18 +365,23 @@ def _get_color_definitions(data: TikzData) -> list:
     return [f"\\definecolor{{{name}}}{{{space}}}{{{val}}}" for name, (space, val) in d.items()]
 
 
-def _get_pgfkeys(data: TikzData | None, strict: bool) -> str:
+def _get_pgfkeys(data: TikzData) -> str:
     """Returns pgfkeys for scientific notation limits."""
     axes = data.current_mpl_axes
-    if not strict or axes == None:
+    if not data.strict or axes is None:
         return ""
     formatter = axes.xaxis.get_major_formatter()
     if formatter is None or not isinstance(formatter, ScalarFormatter):
         return ""
     # matplotlib ticklabel_format(style="plain") sets _scientific=False.
     if bool(getattr(formatter, "_scientific", True)):
-        limits = data.power_limits if data.power_limits is not None else getattr(formatter, "_powerlimits")
-        return f"\\pgfkeys{{/pgf/number format/std={limits[0]}:{limits[1]}}}"
+        if data.power_limits is not None:
+            limits = data.power_limits
+        else:
+            limits = getattr(formatter, "_powerlimits", [])
+        if len(limits) > 0:
+            return f"\\pgfkeys{{/pgf/number format/std={limits[0]}:{limits[1]}}}"
+    return ""
 
 
 def _print_pgfplot_libs_message(data: TikzData) -> None:
