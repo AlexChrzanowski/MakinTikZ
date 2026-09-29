@@ -53,6 +53,29 @@ class PathCollectionData:
     legend_text: str | None = None
 
 
+def _clamp_path_for_log_scale(data: TikzData, path: Path) -> Path:
+    """Clamp non-positive coordinates to the axis limit on log-scaled axes.
+
+    Matplotlib clips these when rendering, but pgfplots cannot take log(0) or
+    log of a negative number, so the whole path would otherwise be dropped.
+    """
+    ax = data.current_mpl_axes
+    if ax is None:
+        return path
+
+    x_log = ax.get_xscale() == "log"
+    y_log = ax.get_yscale() == "log"
+    if not (x_log or y_log):
+        return path
+
+    verts = np.array(path.vertices, dtype=float, copy=True)
+    if x_log:
+        verts[:, 0] = np.where(verts[:, 0] <= 0, min(ax.get_xlim()), verts[:, 0])
+    if y_log:
+        verts[:, 1] = np.where(verts[:, 1] <= 0, min(ax.get_ylim()), verts[:, 1])
+    return Path(verts, path.codes)
+
+
 def draw_path(
     data: TikzData,
     path: Path,
@@ -71,6 +94,8 @@ def draw_path(
         and "fill opacity=0" in draw_options
     ):
         return "", False
+
+    path = _clamp_path_for_log_scale(data, path)
 
     x_is_date = _check_x_is_date(data)
 
