@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Sequence, Sized
 from dataclasses import dataclass
 from importlib import import_module
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -131,6 +131,7 @@ class MyAxes:
         self.data = data
         self.obj = obj
         self.content: list[str] = []
+        self.side_title_content: list[str] = []
 
         # Are we dealing with an axis that hosts a colorbar? Skip then, those are
         # treated implicitily by the associated axis. Exception: standalone colorbar
@@ -207,6 +208,21 @@ class MyAxes:
                 title = title.replace("\n", r"\\")
                 self.data.current_axis_options.add(r"title style={align=center}")
             self.data.current_axis_options.add(f"title={{{title}}}")
+
+        for loc, anchor in (("left", "base west"), ("right", "base east")):
+            side_title = self.obj.get_title(loc=cast("Literal['left', 'right']", loc))
+            if side_title:
+                side_title = _common_texification(side_title)
+                if "\n" in side_title:
+                    side_title = side_title.replace("\n", r"\\")
+                self.data.current_axis_options.add(
+                    "clip=false"
+                )  # necessary to allow side titles to be outside the axis box
+                self.side_title_content.append(
+                    f"\\draw (axis description cs:{0 if loc == 'left' else 1},1) "
+                    f"node[anchor={anchor}, align={loc}, inner sep=0pt, "
+                    f"yshift=0.3em]{{{side_title}}};\n"
+                )
 
     def _set_axis_titles(self) -> None:
         xlabel = self.obj.get_xlabel()
@@ -518,6 +534,7 @@ class MyAxes:
             # Output defaults first, then extra (deterministic order to avoid diff churn).
             all_opts = sorted(default_opts) + sorted(self.data.extra_axis_parameters)
             self.content.append("[\n" + ",\n".join(all_opts) + "\n]\n")
+        self.content.extend(self.side_title_content)
         return self.content
 
     def get_end_code(self) -> str:
