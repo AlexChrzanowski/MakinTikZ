@@ -330,7 +330,7 @@ class MyAxes:
 
     def _set_ticks(self) -> None:
         self._get_ticks()
-        self._get_tick_colors()
+        self._get_tick_style()
         self._get_tick_direction()
         self._set_tick_rotation()
         self._set_tick_positions()
@@ -584,7 +584,13 @@ class MyAxes:
             )
         )
 
-    def _get_tick_colors(self) -> None:
+    def _get_tick_style(self) -> None:
+        """Gets tick styling options, such as tick color, tick length, label font size, etc."""
+
+        def pt_to_mm(pt: float) -> int:
+            MM_PER_PT = 0.3528
+            return pt * MM_PER_PT
+
         try:
             l0 = self.obj.get_xticklines()[0]
         except IndexError:
@@ -592,7 +598,21 @@ class MyAxes:
         else:
             c0 = l0.get_color()
             xtickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-            self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}}}")
+            tick_options = ""
+            label_options = ""
+
+            params = self.obj.get_xaxis().get_tick_params()
+            if self.data.strict:
+                if "length" in params.keys():
+                    tick_options += f"/pgfplots/major tick length={params["length"]}pt, "
+                    # self.data.current_axis_options.add(f"xticklabel style = {{yshift={-(pt_to_mm(params["length"]) - 1)}mm}}")
+                    label_options += f"inner sep=0pt, anchor=north, yshift=0pt"   # removes initial offset
+                    self.data.current_axis_options.add(f",\nxticklabel shift={params["length"]}pt")
+                if "width" in params.keys():
+                    tick_options += f"line width={params["width"]}pt, "
+            print(tick_options)
+            self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}, {tick_options.strip()}}}")
+            self.data.current_axis_options.add(f"xticklabel style={{{label_options}}}")
 
         try:
             l0 = self.obj.get_yticklines()[0]
