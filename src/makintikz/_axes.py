@@ -613,11 +613,13 @@ class MyAxes:
             label_options = ""
             opposite_axis = 'x' if 'y' in axis else 'y'
             anchor = "east" if "x" in axis else "north"
-            # TODO: xtick and ytick for rcParams
             # TODO: minor axes for rcParams
-            rcParams_key = axis + "major" if is_minor is False else "minor"
+            rcParams_key = axis +"tick." + ("major" if is_minor is False else "minor") + "."
+            print(rcParams_key + "size")
             length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
             width = plt.rcParams[rcParams_key + "width"] if "width" not in params.keys() else params["width"]
+            print(length)
+            print(width)
 
             # Updates tick length and tick width
             tick_options += f"/pgfplots/major tick length={length}pt, "
