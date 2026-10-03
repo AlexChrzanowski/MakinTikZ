@@ -381,7 +381,7 @@ def _get_pgfkeys(data: TikzData) -> str:
             limits = getattr(formatter, "_powerlimits", [])
         if len(limits) > 0:
             return (f"\\pgfkeys{{/pgf/number format/std={limits[0]}:{limits[1]}" + 
-                    f", /pgf/number format/precision={limits[0]}}}")
+                    f", /pgf/number format/precision={abs(limits[0])}}}")
     return ""
 
 
