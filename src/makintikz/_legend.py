@@ -4,9 +4,11 @@ import numpy as np
 from matplotlib.backends import backend_agg
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
+from matplotlib.patches import Patch
 
 from . import _color as mycol
 from ._tikzdata import TikzData
+from ._util import _common_texification
 
 
 def draw_legend(data: TikzData, obj: Legend) -> None:
@@ -52,6 +54,9 @@ def draw_legend(data: TikzData, obj: Legend) -> None:
     if ncols != 1:
         data.current_axis_options.add(f"legend columns={ncols}")
 
+    # Handle standalone patch legend entries not backed by axes artists
+    _draw_legend_patch_handles(data, obj)
+
     # Write styles to data
     if legend_style:
         max_length = 80
@@ -63,6 +68,27 @@ def draw_legend(data: TikzData, obj: Legend) -> None:
         string = j1.join(legend_style)
         style = f"legend style={{{j0}{string}{j2}}}"
         data.current_axis_options.add(style)
+
+
+def _draw_legend_patch_handles(data: TikzData, obj: Legend) -> None:
+    """Emits standalone patch legend entries not backed by axes artists."""
+    real_labels: set[str] = set()
+    if obj.axes is not None:
+        _, ax_labels = obj.axes.get_legend_handles_labels()
+        real_labels = set(ax_labels)
+
+    handles = getattr(obj, "legend_handles", getattr(obj, "legendHandles", []))
+    for handle in handles:
+        if not isinstance(handle, Patch):
+            continue
+        label = handle.get_label()
+        if not label or label == "_nolegend_" or label in real_labels:
+            continue
+
+        xcolor, _ = mycol.mpl_color2xcolor(data, handle.get_facecolor())
+        escaped = _common_texification(str(label))
+        data.legend_colors.append(f"\\addlegendimage{{area legend, fill={xcolor}, draw=none}}\n")
+        data.legend_colors.append(f"\\addlegendentry{{{escaped}}}\n")
 
 
 def _legend_position_anchor(data: TikzData, obj: Legend, legend_style: list[str]) -> None:

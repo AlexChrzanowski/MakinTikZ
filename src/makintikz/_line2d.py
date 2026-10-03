@@ -193,6 +193,12 @@ def draw_linecollection(data: TikzData, obj: LineCollection) -> list[str]:
     paths = obj.get_paths()
 
     for i, path in enumerate(paths):
+        # Skip segments with NaN vertices (e.g. error bars on a NaN data point).
+        # Matplotlib itself doesn't render these, so we shouldn't emit broken
+        # `\path [...];` commands with no coordinates for them either.
+        if np.any(np.isnan(path.vertices)):
+            continue
+
         color = edgecolors[i % len(edgecolors)]
         style = linestyles[i % len(linestyles)]
         # Ensure that if style is a tuple, that first element is a float
