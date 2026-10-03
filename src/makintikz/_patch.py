@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Generator, Iterable
 from itertools import cycle, islice, tee
 from typing import TYPE_CHECKING
@@ -174,6 +175,12 @@ def _draw_rectangle(data: TikzData, obj: Rectangle, draw_options: list) -> list[
     do = ",".join(draw_options)
     right_upper_x = left_lower_x + obj.get_width()
     right_upper_y = left_lower_y + obj.get_height()
+
+    # Skip bars with NaN height/position entirely — matplotlib doesn't render
+    # these either, so there's nothing meaningful to draw.
+    if any(math.isnan(v) for v in (left_lower_x, left_lower_y, right_upper_x, right_upper_y)):
+        return []
+
     content = [
         f"\\draw[{do}] (axis cs:{left_lower_x:{ff}},{left_lower_y:{ff}}) "
         f"rectangle (axis cs:{right_upper_x:{ff}},{right_upper_y:{ff}});\n"
