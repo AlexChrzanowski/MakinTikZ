@@ -602,6 +602,26 @@ class MyAxes:
         )
 
     def _get_tick_style(self) -> None:
+        def _get_tick_label_options(self, params: dict, axis: str, is_minor: bool) -> str:
+            label_options = ""
+            opposite_axis = 'x' if 'y' in axis else 'y'
+            anchor = "north" if "x" in axis else "east"
+            rcParams_key = axis +"tick." + ("major" if is_minor is False else "minor") + "."
+            length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
+
+            # Shifts label options to account for tick length
+            label_options += f"inner sep=0pt, anchor={anchor}, {opposite_axis}shift=0pt, "   # removes initial offset
+            self.data.current_axis_options.add(f"{opposite_axis}ticklabel shift={length}pt")
+
+            # Updates label color
+            label_color = plt.rcParams["xtick.labelcolor"] if "labelcolor" not in params.keys() else params["labelcolor"]
+            if label_color != "inherit":
+                formatted_label_color = _color.mpl_color2xcolor(self.data, label_color)
+                label_options += f"color={formatted_label_color[0]}, "
+
+            return label_options
+                        
+        
         """Gets tick styling options, such as tick color, tick length, tick size, label font size."""
         def _get_tick_style_options(self, params: dict, axis: str, is_minor: bool) -> tuple[str]:
             """Gets tick options for the opposing axis.
@@ -610,30 +630,16 @@ class MyAxes:
             This allows the vertical/horizontal shift to be set correctly.
             """
             tick_options = ""
-            label_options = ""
-            opposite_axis = 'x' if 'y' in axis else 'y'
-            anchor = "east" if "x" in axis else "north"
             # TODO: minor axes for rcParams
             rcParams_key = axis +"tick." + ("major" if is_minor is False else "minor") + "."
-            print(rcParams_key + "size")
             length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
             width = plt.rcParams[rcParams_key + "width"] if "width" not in params.keys() else params["width"]
-            print(length)
-            print(width)
-
+            
             # Updates tick length and tick width
             tick_options += f"/pgfplots/major tick length={length}pt, "
-            label_options += f"inner sep=0pt, anchor={anchor}, {opposite_axis}shift=0pt, "   # removes initial offset
-            self.data.current_axis_options.add(f"{opposite_axis}ticklabel shift={length}pt")
             tick_options += f"line width={width}pt, "
 
-           # Updates label color
-            label_color = plt.rcParams["xtick.labelcolor"] if "labelcolor" not in params.keys() else params["labelcolor"]
-            if label_color != "inherit":
-                formatted_label_color = _color.mpl_color2xcolor(self.data, label_color)
-                label_options += f"color={formatted_label_color[0]}, "
-
-            return (tick_options, label_options)
+            return tick_options
         
         try:
             l0 = self.obj.get_xticklines()[0]
@@ -644,7 +650,8 @@ class MyAxes:
             xtickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
             if self.data.strict:
                 params = self.obj.get_xaxis().get_tick_params()
-                tick_options, label_options = _get_tick_style_options(self, params, 'x', False)
+                tick_options = _get_tick_style_options(self, params, 'x', False)
+                label_options = _get_tick_label_options(self, params, 'x', False)
                 self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"xticklabel style={{{label_options}}}")
             else:
@@ -659,7 +666,8 @@ class MyAxes:
             ytickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
             if self.data.strict:
                 params = self.obj.get_yaxis().get_tick_params()
-                tick_options, label_options = _get_tick_style_options(self, params, 'y', False)
+                tick_options = _get_tick_style_options(self, params, 'y', False)
+                label_options = _get_tick_label_options(self, params, 'y', False)
                 self.data.current_axis_options.add(f"ytick style={{color={ytickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"yticklabel style={{{label_options}}}")
             else:
