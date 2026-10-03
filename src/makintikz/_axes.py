@@ -610,8 +610,9 @@ class MyAxes:
         else:
             c0 = l0.get_color()
             xtickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-            tick_options = ", "
+            tick_options = ""
             if self.data.strict:
+                tick_options += ", "
                 params = self.obj.get_xaxis().get_tick_params()
                 tick_options += self._get_tick_style_options(params, "x", is_minor=False)
                 label_options = self._get_tick_label_options(params, "x")
@@ -627,8 +628,9 @@ class MyAxes:
         else:
             c0 = l0.get_color()
             ytickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-            tick_options = ", "
+            tick_options = ""
             if self.data.strict:
+                tick_options += ", "
                 params = self.obj.get_yaxis().get_tick_params()
                 tick_options += self._get_tick_style_options(params, "y", is_minor=False)
                 label_options = self._get_tick_label_options(params, "y")
