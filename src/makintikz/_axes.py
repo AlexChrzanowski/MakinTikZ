@@ -602,11 +602,23 @@ class MyAxes:
         )
 
     def _get_tick_style(self) -> None:
-        def _get_tick_label_options(self, params: dict, axis: str, is_minor: bool) -> str:
+        """Gets tick styling options, such as tick color, tick length, tick size, label font size."""
+        def _get_tick_style_options(self, params: dict, axis: str, is_minor: bool) -> tuple[str]:
+            tick_options = ""
+            minor_or_major = "major" if is_minor is False else "minor"
+            rcParams_key = axis +"tick." + minor_or_major + "."
+            length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
+            width = plt.rcParams[rcParams_key + "width"] if "width" not in params.keys() else params["width"]
+            # Updates tick length and tick width
+            tick_options += f"/pgfplots/{minor_or_major} tick length={length}pt, "
+            tick_options += f"line width={width}pt, "
+            return tick_options
+        
+        def _get_tick_label_options(self, params: dict, axis: str) -> str:
             label_options = ""
             opposite_axis = 'x' if 'y' in axis else 'y'
             anchor = "north" if "x" in axis else "east"
-            rcParams_key = axis +"tick." + ("major" if is_minor is False else "minor") + "."
+            rcParams_key = axis +"tick.major."
             length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
 
             # Shifts label options to account for tick length
@@ -618,28 +630,7 @@ class MyAxes:
             if label_color != "inherit":
                 formatted_label_color = _color.mpl_color2xcolor(self.data, label_color)
                 label_options += f"color={formatted_label_color[0]}, "
-
             return label_options
-                        
-        
-        """Gets tick styling options, such as tick color, tick length, tick size, label font size."""
-        def _get_tick_style_options(self, params: dict, axis: str, is_minor: bool) -> tuple[str]:
-            """Gets tick options for the opposing axis.
-
-            Example: To style major x ticks, pass in 'y' as opposite_axis.
-            This allows the vertical/horizontal shift to be set correctly.
-            """
-            tick_options = ""
-            # TODO: minor axes for rcParams
-            rcParams_key = axis +"tick." + ("major" if is_minor is False else "minor") + "."
-            length = plt.rcParams[rcParams_key + "size"] if "length" not in params.keys() else params["length"]
-            width = plt.rcParams[rcParams_key + "width"] if "width" not in params.keys() else params["width"]
-            
-            # Updates tick length and tick width
-            tick_options += f"/pgfplots/major tick length={length}pt, "
-            tick_options += f"line width={width}pt, "
-
-            return tick_options
         
         try:
             l0 = self.obj.get_xticklines()[0]
@@ -651,9 +642,13 @@ class MyAxes:
             if self.data.strict:
                 params = self.obj.get_xaxis().get_tick_params()
                 tick_options = _get_tick_style_options(self, params, 'x', False)
-                label_options = _get_tick_label_options(self, params, 'x', False)
+                label_options = _get_tick_label_options(self, params, 'x')
                 self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"xticklabel style={{{label_options}}}")
+
+                minor_params = self.obj.get_xaxis().get_tick_params(which="minor")
+                minor_tick_options = _get_tick_style_options(self, minor_params, 'x', True)
+                self.data.current_axis_options.add(f"minor x tick style={{{minor_tick_options.strip()}}}")
             else:
                 self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}}}")
 
@@ -667,11 +662,16 @@ class MyAxes:
             if self.data.strict:
                 params = self.obj.get_yaxis().get_tick_params()
                 tick_options = _get_tick_style_options(self, params, 'y', False)
-                label_options = _get_tick_label_options(self, params, 'y', False)
+                label_options = _get_tick_label_options(self, params, 'y')
                 self.data.current_axis_options.add(f"ytick style={{color={ytickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"yticklabel style={{{label_options}}}")
+
+                minor_params = self.obj.get_yaxis().get_tick_params(which="minor")
+                minor_tick_options = _get_tick_style_options(self, minor_params, 'y', True)
+                self.data.current_axis_options.add(f"minor y tick style={{{minor_tick_options.strip()}}}")
             else:
                 self.data.current_axis_options.add(f"ytick style={{color={xtickcolor}}}")
+        # TODO: separate minor tick logic, error proof for minor ticks not existing
 
     def _get_tick_direction(self) -> None:
         # For new matplotlib versions, we could replace the direction getter by
