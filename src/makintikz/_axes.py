@@ -645,10 +645,6 @@ class MyAxes:
                 label_options = _get_tick_label_options(self, params, 'x')
                 self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"xticklabel style={{{label_options}}}")
-
-                minor_params = self.obj.get_xaxis().get_tick_params(which="minor")
-                minor_tick_options = _get_tick_style_options(self, minor_params, 'x', True)
-                self.data.current_axis_options.add(f"minor x tick style={{{minor_tick_options.strip()}}}")
             else:
                 self.data.current_axis_options.add(f"xtick style={{color={xtickcolor}}}")
 
@@ -665,13 +661,27 @@ class MyAxes:
                 label_options = _get_tick_label_options(self, params, 'y')
                 self.data.current_axis_options.add(f"ytick style={{color={ytickcolor}, {tick_options.strip()}}}")
                 self.data.current_axis_options.add(f"yticklabel style={{{label_options}}}")
+            else:
+                self.data.current_axis_options.add(f"ytick style={{color={xtickcolor}}}")
 
+        if self.data.strict:
+            try:
+                l0 = self.obj.get_xticklines(minor=True)[0]
+            except IndexError:
+                pass
+            else:
+                minor_params = self.obj.get_xaxis().get_tick_params(which="minor")
+                minor_tick_options = _get_tick_style_options(self, minor_params, 'x', True)
+                self.data.current_axis_options.add(f"minor x tick style={{{minor_tick_options.strip()}}}")
+
+            try:
+                l0 = self.obj.get_yticklines(minor=True)[0]
+            except IndexError:
+                pass
+            else:
                 minor_params = self.obj.get_yaxis().get_tick_params(which="minor")
                 minor_tick_options = _get_tick_style_options(self, minor_params, 'y', True)
                 self.data.current_axis_options.add(f"minor y tick style={{{minor_tick_options.strip()}}}")
-            else:
-                self.data.current_axis_options.add(f"ytick style={{color={xtickcolor}}}")
-        # TODO: separate minor tick logic, error proof for minor ticks not existing
 
     def _get_tick_direction(self) -> None:
         # For new matplotlib versions, we could replace the direction getter by
