@@ -874,7 +874,9 @@ def _get_ticks(
     """
     axis_options = []
     is_minor = "minor" in xy
-    is_label_required = force_label_required or _is_label_required(ticks, ticklabels)
+    is_label_required = not is_minor and (
+        force_label_required or _is_label_required(ticks, ticklabels)
+    )
     pgfplots_ticklabels = _get_pgfplots_ticklabels(ticklabels)
 
     # PGFPlots does not support custom labels for minor ticks (e.g., "minor xticklabels"
