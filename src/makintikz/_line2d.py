@@ -243,7 +243,7 @@ def _marker(
     addplot_options.append("mark=" + marker_data.marker)
 
     _marker_size(data, obj, addplot_options)
-    _marker_every(obj, addplot_options)
+    _marker_every(data, obj, addplot_options)
     _marker_options(data, marker_data, addplot_options)
 
 
@@ -256,7 +256,7 @@ def _marker_size(data: TikzData, obj: Line2D, addplot_options: list[str]) -> Non
         addplot_options.append(f"mark size={pgf_size:{ff}}")
 
 
-def _marker_every(obj: Line2D, addplot_options: list[str]) -> None:
+def _marker_every(data: TikzData, obj: Line2D, addplot_options: list[str]) -> None:
     mark_every = obj.get_markevery()
     if mark_every:
         if isinstance(mark_every, (int, float)):
@@ -267,6 +267,9 @@ def _marker_every(obj: Line2D, addplot_options: list[str]) -> None:
             # python starts at index 0, pgfplots at index 1
             pgf_marker = [1 + m for m in mark_every]
             addplot_options.append("mark indices = {" + ", ".join(map(str, pgf_marker)) + "}")
+
+            if obj.axes is not None and obj.axes.get_legend() is not None:
+                data.current_axis_options.add("legend image post style={mark indices={}}")
 
 
 def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: list[str]) -> None:

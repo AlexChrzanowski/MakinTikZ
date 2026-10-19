@@ -1,0 +1,42 @@
+\begin{tikzpicture}
+
+\definecolor{darkgray176}{RGB}{176,176,176}
+\definecolor{steelblue31119180}{RGB}{31,119,180}
+
+\begin{axis}[
+height=4.8in,
+log basis x={10},
+log basis y={10},
+tick align=outside,
+tick pos=left,
+width=6.4in,
+x grid style={darkgray176},
+xmajorgrids,
+xmin=0.0030765811, xmax=1.2867039,
+xmode=log,
+xtick style={color=black},
+y grid style={darkgray176},
+ymajorgrids,
+ymin=0.7529116, ymax=1.0136064,
+ymode=log,
+ytick style={color=black}
+]
+\addplot [
+  draw=steelblue31119180,
+  fill=steelblue31119180,
+  mark size=3.3851375pt,
+  mark=*,
+  only marks
+]
+table{%
+x  y
+0.0040478404 0.763156
+0.14066075 0.92578
+0.29490113 0.979844
+0.60338188 0.9997
+0.7796566 1
+0.97796566 1
+};
+\end{axis}
+
+\end{tikzpicture}
