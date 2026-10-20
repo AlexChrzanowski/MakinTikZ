@@ -16,3 +16,6 @@ mytikz.tex
 reports/
 test.tex
 venv/
+
+# Local Python environment
+.venv/
