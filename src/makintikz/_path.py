@@ -698,11 +698,11 @@ def _get_draw_options_hatch(data: TikzData, line_data: LineData) -> list[str]:
     # No 'pattern line width' option exist.
     # This can be achieved with custom patterns, see _hatches.py
 
-    # There exist an obj.get_hatch_color() method in the mpl API,
-    # but it seems to be unused
-    try:
-        hc = line_data.obj._hatch_color  # type: ignore[union-attr]  # noqa: SLF001
-    except AttributeError:  # Fallback to edge color
+    # Matplotlib may use "edge" to indicate that hatch strokes
+    # inherit the patch edge color.
+    hc = getattr(line_data.obj, "_hatch_color", "edge")
+
+    if hc == "edge":
         if (
             line_data.ec_name is not None
             and line_data.ec_rgba is not None
@@ -710,17 +710,13 @@ def _get_draw_options_hatch(data: TikzData, line_data: LineData) -> list[str]:
         ):
             h_col, h_rgba = line_data.ec_name, line_data.ec_rgba
         else:
-            # Assuming that a hatch marker indicates that hatches are wanted, also
-            # when the edge color is (0, 0, 0, 0), i.e., the edge is invisible
             h_col, h_rgba = "black", np.array([0, 0, 0, 1])
     else:
         h_col, h_rgba = _color.mpl_color2xcolor(data, hc)
-    finally:
-        if h_rgba[3] > 0:
-            pattern = _mpl_hatch2pgfp_pattern(data, line_data.hatch, h_col, h_rgba)
-        else:
-            pattern = []
-    return pattern
+
+    if h_rgba[3] > 0:
+        return _mpl_hatch2pgfp_pattern(data, line_data.hatch, h_col, h_rgba)
+    return []
 
 
 def mpl_linewidth2pgfp_linewidth(data: TikzData, line_width: float) -> str | None:
