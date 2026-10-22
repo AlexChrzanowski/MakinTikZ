@@ -427,21 +427,34 @@ class MyAxes:
         )
 
     def _set_axes_grid(self) -> None:
+        # https://github.com/AlexChrzanowski/MakinTikZ/issues/64
         axes = [ax for ax in self.obj.figure.get_axes() if type(ax) == type(self.obj)]
         if len(axes) > 1:
             self.is_subplot = True
         else:
             return
 
-        locator_cols = 0
-        locator_rows = 0
+        # locator_cols and locator_rows ensures that plots in the same row/col
+        # are not double-counted.
+        locator_cols = set()
+        locator_rows = set()
+        col_size = 0
+        row_size = 0
+
         for ax in axes:
             loc = ax.get_axes_locator().args # nx, ny, nx1, ny1
-            locator_cols += loc[2] - loc[0]
-            locator_rows += loc[3] - loc[1]
+            x_coords = (loc[2], loc[0])
+            y_coords = (loc[3], loc[1])
+
+            if x_coords not in locator_cols and loc[2] - loc[0] > 0:
+                locator_cols.add(x_coords)
+                col_size += 1
+            if y_coords not in locator_rows and loc[3] - loc[1] > 0:
+                locator_rows.add(y_coords)
+                row_size += 1
 
         if not self.data.is_in_groupplot_env:
-            group_style = [f"group size={locator_rows} by {locator_cols}"]
+            group_style = [f"group size={col_size} by {row_size}"]
             group_style.extend(self.data.extra_groupstyle_options)
             options = ["group style={{{}}}".format(", ".join(group_style))]
             self.content.append(
@@ -449,8 +462,6 @@ class MyAxes:
             )
             self.data.is_in_groupplot_env = True
             self.data.pgfplots_libs.add("groupplots")
-
-        # TODO: handle spacing
 
     def _set_axis_line_styles(self) -> None:
         # Assume that the bottom edge color is the color of the entire box.
