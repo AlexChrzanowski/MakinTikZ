@@ -152,6 +152,15 @@ class MyAxes:
         if isinstance(obj, Subplot):
             self._subplot()
 
+        try:
+            from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
+            is_axes_grid = isinstance(obj, AxesGrid)
+        except ImportError:
+            is_axes_grid = False
+
+        if is_axes_grid:
+            self._set_axes_grid()
+
         data.current_axis_options = set()  # Reset axis options
 
         self._set_hide_axis()
@@ -416,6 +425,24 @@ class MyAxes:
                 orphan_style_line=y_orphan,
             ),
         )
+
+    def _set_axes_grid(self) -> None:
+        # TODO: check if is_groupplot
+        is_groupplot = True
+        if is_groupplot:
+            self.is_subplot = True
+ 
+        if not self.data.is_in_groupplot_env:
+            group_style = [f""]     # TODO: handle group styles
+            group_style.extend(self.data.extra_groupstyle_options)
+            options = ["group style={{{}}}".format(", ".join(group_style))]
+            self.content.append(
+                self.data.flavor.start("groupplot") + f"[{', '.join(options)}]"
+            )
+            self.data.is_in_groupplot_env = True
+            self.data.pgfplots_libs.add("groupplots")
+
+        # TODO: handle spacing
 
     def _set_axis_line_styles(self) -> None:
         # Assume that the bottom edge color is the color of the entire box.
