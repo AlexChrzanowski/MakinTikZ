@@ -1159,7 +1159,8 @@ def _handle_listed_color_map(cmap: ListedColormap, data: TikzData) -> tuple[str,
     }
     for mpl_cm_name, pgf_cm in cm_translate.items():
         mpl_cm = plt.get_cmap(mpl_cm_name)
-        arr_mpl_cm = np.asarray(mpl_cm.colors)
+        if isinstance(mpl_cm, ListedColormap):
+            arr_mpl_cm = np.asarray(mpl_cm.colors)
         arr_cmap = np.asarray(cmap.colors)
 
         are_arrays_equal = False
@@ -1167,10 +1168,10 @@ def _handle_listed_color_map(cmap: ListedColormap, data: TikzData) -> tuple[str,
             # truncates columns to match the expected rgb column values
             arr_cmap = arr_cmap[:, :3]
             are_arrays_equal = np.array_equal(arr_cmap, arr_mpl_cm)
-        elif (np.shape(arr_cmap) == np.shape(arr_mpl_cm)):
+        elif np.shape(arr_cmap) == np.shape(arr_mpl_cm):
             are_arrays_equal = mpl_cm == cmap
 
-        if isinstance(mpl_cm, ListedColormap) and are_arrays_equal:
+        if are_arrays_equal:
             is_custom_colormap = False
             return pgf_cm, is_custom_colormap
 
@@ -1184,7 +1185,7 @@ def _handle_listed_color_map(cmap: ListedColormap, data: TikzData) -> tuple[str,
         colors = [
             f"rgb({k}{unit})=({rgb[0]:{ff}},{rgb[1]:{ff}},{rgb[2]:{ff}})"
             for k, rgb in enumerate(cmap.colors)
-            if isinstance(rgb, list) or isinstance(rgb, np.ndarray)
+            if isinstance(rgb, (list, np.ndarray))
         ]
     elif isinstance(cmap.colors, list):
         reps = int(float(cmap.N) / len(cmap.colors) - 0.5) + 1
