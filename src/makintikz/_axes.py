@@ -12,6 +12,7 @@ from matplotlib.axes import Subplot
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
 from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
 
 from . import _color
 from ._util import _common_texification
@@ -152,13 +153,7 @@ class MyAxes:
         if isinstance(obj, Subplot):
             self._subplot()
 
-        try:
-            from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
-            is_axes_grid = isinstance(obj, AxesGrid)
-        except ImportError:
-            is_axes_grid = False
-
-        if is_axes_grid:
+        if isinstance(obj, AxesGrid):
             self._set_axes_grid()
 
         data.current_axis_options = set()  # Reset axis options
@@ -428,9 +423,12 @@ class MyAxes:
 
     def _set_axes_grid(self) -> None:
         # https://github.com/AlexChrzanowski/MakinTikZ/issues/64
-        axes = [ax for ax in self.obj.figure.get_axes() if type(ax) == type(self.obj)]
-        if len(axes) > 1:
-            self.is_subplot = True
+        if self.obj.figure is not None:
+            axes = [ax for ax in self.obj.figure.get_axes() if type(ax) is type(self.obj)]
+            if len(axes) > 1:
+                self.is_subplot = True
+            else:
+                return
         else:
             return
 
@@ -442,7 +440,9 @@ class MyAxes:
         row_size = 0
 
         for ax in axes:
-            loc = ax.get_axes_locator().args # nx, ny, nx1, ny1
+            loc = getattr(ax.get_axes_locator(), "args", None)  # nx, ny, nx1, ny1
+            if loc is None:
+                continue
             x_coords = (loc[2], loc[0])
             y_coords = (loc[3], loc[1])
 
@@ -457,9 +457,7 @@ class MyAxes:
             group_style = [f"group size={col_size} by {row_size}"]
             group_style.extend(self.data.extra_groupstyle_options)
             options = ["group style={{{}}}".format(", ".join(group_style))]
-            self.content.append(
-                self.data.flavor.start("groupplot") + f"[{', '.join(options)}]"
-            )
+            self.content.append(self.data.flavor.start("groupplot") + f"[{', '.join(options)}]")
             self.data.is_in_groupplot_env = True
             self.data.pgfplots_libs.add("groupplots")
 
