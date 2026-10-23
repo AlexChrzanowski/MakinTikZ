@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.axes import Subplot
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import FormatStrFormatter, ScalarFormatter
 
 from . import _color
 from ._util import _common_texification
@@ -557,8 +557,8 @@ class MyAxes:
         return ""
 
     def _get_ticks(self) -> None:
-        force_x_ticklabels = _uses_plain_scalar_tick_format(self.obj, "x")
-        force_y_ticklabels = _uses_plain_scalar_tick_format(self.obj, "y")
+        force_x_ticklabels = _requires_explicit_tick_labels(self.obj, "x")
+        force_y_ticklabels = _requires_explicit_tick_labels(self.obj, "y")
 
         powlimits = _get_powerlimits(self.obj)
         self.data.power_limits = powlimits
@@ -916,14 +916,20 @@ def _get_ticks(
     return axis_options
 
 
-def _uses_plain_scalar_tick_format(obj: Axes, x_or_y: str) -> bool:
-    """Return True when ticklabel_format(style='plain') is active on this axis."""
+def _requires_explicit_tick_labels(obj: Axes, x_or_y: str) -> bool:
+    """Return True when matplotlib's formatted tick labels must be preserved."""
     axis = obj.xaxis if x_or_y == "x" else obj.yaxis
     formatter = axis.get_major_formatter()
-    if not isinstance(formatter, ScalarFormatter):
-        return False
+
+    # Explicit printf-style formatting, e.g. FormatStrFormatter("%.3f").
+    if isinstance(formatter, FormatStrFormatter):
+        return True
+
     # matplotlib ticklabel_format(style="plain") sets _scientific=False.
-    return not bool(getattr(formatter, "_scientific", True))
+    if isinstance(formatter, ScalarFormatter):
+        return not bool(getattr(formatter, "_scientific", True))
+
+    return False
 
 
 def _is_label_required(ticks: list | np.ndarray, ticklabels: list) -> bool:
