@@ -1,9 +1,12 @@
-import matplotlib
-matplotlib.use("Agg")
+"""Regression tests for Matplotlib hatch edge-color handling."""
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pytest
+
 import makintikz
+
+mpl.use("Agg")
 
 
 @pytest.mark.parametrize(
@@ -14,7 +17,8 @@ import makintikz
         ("none", "black"),
     ],
 )
-def test_hatch_inherits_edge_color(edgecolor, expected_color):
+def test_hatch_inherits_edge_color(edgecolor: str, expected_color: str) -> None:
+    """Verify that hatch patterns inherit the correct edge color."""
     fig, ax = plt.subplots()
 
     try:
@@ -28,16 +32,16 @@ def test_hatch_inherits_edge_color(edgecolor, expected_color):
         )
 
         patch = bars.patches[0]
-
         assert patch.get_hatch() == "/"
 
-        code = makintikz.get_tikz_code()
+        code = makintikz.get_tikz_code(figure=fig)
 
-        print(f"\nEdge color: {edgecolor}")
-        print(f"Hatch color: {patch._hatch_color!r}")
-        print(code)
+        assert "pattern=" in code
 
-        assert "pattern" in code
-        assert "pattern color" in code or expected_color == "black"
+        if expected_color == "black":
+            # TikZ uses black when no pattern color is specified.
+            assert "pattern color=" not in code
+        else:
+            assert f"pattern color={expected_color}" in code
     finally:
         plt.close(fig)
