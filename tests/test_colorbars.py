@@ -2,10 +2,12 @@
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-import makintikz
-from .helpers import assert_equality
 import numpy as np
+from matplotlib.figure import Figure
+
+import makintikz
+
+from .helpers import assert_equality
 
 mpl.use("Agg")
 
@@ -80,6 +82,7 @@ def plot() -> Figure:
 
 def test() -> None:
     assert_equality(plot, "test_colorbars_reference.tex")
+
 
 def test_binary_grayscale_colormap() -> None:
     fig, ax = plt.subplots()
