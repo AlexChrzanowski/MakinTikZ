@@ -462,11 +462,25 @@ class MyAxes:
             self.data.pgfplots_libs.add("groupplots")
 
     def _set_axis_line_styles(self) -> None:
-        # Assume that the bottom edge color is the color of the entire box.
-        axcol = self.obj.spines["bottom"].get_edgecolor()
+        # Assume that the bottom spine represents the style of the entire axis box.
+        spine = self.obj.spines["bottom"]
+
+        axcol = spine.get_edgecolor()
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
+
+        linewidth = spine.get_linewidth()
+        default_linewidth = plt.rcParamsDefault["axes.linewidth"]
+
+        style_parts = []
+
         if col != "black":
-            self.data.current_axis_options.add(f"axis line style={{{col}}}")
+            style_parts.append(col)
+
+        if not np.isclose(linewidth, default_linewidth):
+            style_parts.append(f"line width={linewidth:g}pt")
+
+        if style_parts:
+            self.data.current_axis_options.add(f"axis line style={{{','.join(style_parts)}}}")
 
     def _set_background_color(self) -> None:
         bgcolor = self.obj.get_facecolor()
