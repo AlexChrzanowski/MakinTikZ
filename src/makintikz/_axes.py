@@ -1093,7 +1093,7 @@ def _mpl_cmap2pgf_cmap(cmap: Colormap, data: TikzData) -> tuple[str, bool]:
 def _handle_linear_segmented_color_map(
     cmap: LinearSegmentedColormap, data: TikzData
 ) -> tuple[str, bool]:
-    if cmap.is_gray():
+    if cmap.name == "gray":
         is_custom_colormap = False
         return "blackwhite", is_custom_colormap
 

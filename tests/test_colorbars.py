@@ -2,7 +2,10 @@
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.figure import Figure
+
+import makintikz
 
 from .helpers import assert_equality
 
@@ -79,3 +82,22 @@ def plot() -> Figure:
 
 def test() -> None:
     assert_equality(plot, "test_colorbars_reference.tex")
+
+
+def test_binary_grayscale_colormap() -> None:
+    fig, ax = plt.subplots()
+
+    data = np.array([[0.0, 1.0]])
+    image = ax.imshow(data, cmap="binary", vmin=0.0, vmax=1.0)
+    fig.colorbar(image)
+
+    code = makintikz.get_tikz_code(
+        include_disclaimer=False,
+        float_format=".8g",
+    )
+
+    plt.close("all")
+
+    assert "colormap/blackwhite" not in code
+    assert "rgb(0pt)=(1,1,1)" in code
+    assert "rgb(1pt)=(0,0,0)" in code
