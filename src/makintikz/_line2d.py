@@ -76,7 +76,7 @@ def draw_line2d(data: TikzData, obj: Line2D) -> list[str]:
     addplot_options = _get_line2d_options(data, obj)
     # Check if a line is in a legend and forget it if not.
     # Fixes <https://github.com/nschloe/tikzplotlib/issues/167>.
-    
+
     if _is_errorbar_main_line(obj):
         legend_text = _get_errorbar_legend_text(obj)
     else:
@@ -158,6 +158,7 @@ def _get_linecolor_line2d(data: TikzData, obj: Line2D) -> str:
     color = obj.get_color()
     return mycol.mpl_color2xcolor(data, color)[0]
 
+
 def _get_errorbar_legend_text(obj: Line2D) -> str | None:
     axes = obj.axes
     if axes is None:
@@ -179,6 +180,7 @@ def _get_errorbar_legend_text(obj: Line2D) -> str | None:
                 return legend_texts[index]
 
     return None
+
 
 def _is_errorbar_main_line(obj: Line2D) -> bool:
     axes = obj.axes
