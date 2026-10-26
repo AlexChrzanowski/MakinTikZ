@@ -19,9 +19,15 @@ def draw_legend(data: TikzData, obj: Legend) -> None:
         texts.append(f"{text.get_text()}")
         children_alignment.append(f"{text.get_horizontalalignment()}")
 
+    # Get effective legend transparency.
+    frame = obj.get_frame()
+    alpha = frame.get_alpha()
+
+    if alpha is None:
+        alpha = frame.get_facecolor()[3]
+
     legend_style = [
-        # https://github.com/matplotlib/matplotlib/issues/15764#issuecomment-557823370
-        f"fill opacity={obj.get_frame().get_alpha()}",
+        f"fill opacity={alpha}",
         "draw opacity=1",
         "text opacity=1",
     ]
