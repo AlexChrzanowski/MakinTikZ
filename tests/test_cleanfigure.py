@@ -676,6 +676,7 @@ def test_memory() -> None:
     clean_figure()
     plt.close("all")
 
+
 def test_single_point_scatter_clean_figure() -> None:
     plt.figure()
     plt.scatter([1], [1])
