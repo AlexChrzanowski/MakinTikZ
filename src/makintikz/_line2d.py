@@ -76,7 +76,12 @@ def draw_line2d(data: TikzData, obj: Line2D) -> list[str]:
     addplot_options = _get_line2d_options(data, obj)
     # Check if a line is in a legend and forget it if not.
     # Fixes <https://github.com/nschloe/tikzplotlib/issues/167>.
-    legend_text = get_legend_text(obj)
+
+    if _is_errorbar_main_line(obj):
+        legend_text = _get_errorbar_legend_text(obj)
+    else:
+        legend_text = get_legend_text(obj)
+
     if legend_text is None and obj.axes is not None and has_legend(obj.axes):
         addplot_options.append("forget plot")
 
@@ -152,6 +157,29 @@ def _get_line2d_options(data: TikzData, obj: Line2D) -> list[str]:
 def _get_linecolor_line2d(data: TikzData, obj: Line2D) -> str:
     color = obj.get_color()
     return mycol.mpl_color2xcolor(data, color)[0]
+
+
+def _get_errorbar_legend_text(obj: Line2D) -> str | None:
+    axes = obj.axes
+    if axes is None:
+        return None
+
+    legend = axes.get_legend()
+    if legend is None:
+        return None
+
+    handles, _ = axes.get_legend_handles_labels()
+    legend_texts = [text.get_text() for text in legend.texts]
+
+    for index, handle in enumerate(handles):
+        if not isinstance(handle, ErrorbarContainer):
+            continue
+
+        with contextlib.suppress(AttributeError, IndexError, TypeError):
+            if handle.lines[0] is obj and index < len(legend_texts):
+                return legend_texts[index]
+
+    return None
 
 
 def _is_errorbar_main_line(obj: Line2D) -> bool:
