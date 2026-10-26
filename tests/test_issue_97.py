@@ -1,15 +1,19 @@
+"""Regression tests for legend opacity handling."""
+
 import re
 
-import matplotlib
-matplotlib.use("Agg")
+import matplotlib as mpl
+
+mpl.use("Agg")
 
 import matplotlib.pyplot as plt
 import pytest
+
 import makintikz
 
 
 @pytest.mark.parametrize("alpha", [None, 0.0, 0.5, 1.0])
-def test_legend_opacity(alpha):
+def test_legend_opacity(alpha: float | None) -> None:
     with plt.style.context("classic"):
         fig, ax = plt.subplots()
         try:
