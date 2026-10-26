@@ -480,9 +480,7 @@ class MyAxes:
             style_parts.append(f"line width={linewidth:g}pt")
 
         if style_parts:
-            self.data.current_axis_options.add(
-                f"axis line style={{{','.join(style_parts)}}}"
-            )
+            self.data.current_axis_options.add(f"axis line style={{{','.join(style_parts)}}}")
 
     def _set_background_color(self) -> None:
         bgcolor = self.obj.get_facecolor()
