@@ -890,7 +890,16 @@ def _get_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
     position_string = None
     major_ticks_position = None
     if not major_ticks_bottom_show_all and not major_ticks_top_show_all:
-        position_string = f"{x_or_y}majorticks=false"
+        major_tick_labels = (
+            obj.xaxis.get_majorticklabels() if x_or_y == "x" else obj.yaxis.get_majorticklabels()
+        )
+
+        has_visible_labels = any(label.get_visible() for label in major_tick_labels)
+
+        if has_visible_labels:
+            position_string = f"{x_or_y}tick style={{draw=none}}"
+        else:
+            position_string = f"{x_or_y}majorticks=false"
     elif major_ticks_bottom_show_all and major_ticks_top_show_all:
         major_ticks_position = "both"
     elif major_ticks_bottom_show_all:
