@@ -13,7 +13,7 @@ from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
-from matplotlib.projections import PolarAxes
+from matplotlib.projections.polar import PolarAxes, RadialTick, ThetaTick
 
 from . import _color
 from ._util import _common_texification
@@ -158,7 +158,6 @@ class MyAxes:
         if isinstance(obj, AxesGrid):
             self._set_axes_grid()
 
-        print(isinstance(obj, PolarAxes))
         if isinstance(obj, PolarAxes):
             self._polar()
 
@@ -899,8 +898,8 @@ class MyAxes:
 def _get_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
     major_ticks = obj.xaxis.majorTicks if x_or_y == "x" else obj.yaxis.majorTicks
 
-    major_ticks_bottom = [tick.tick1line.get_visible() for tick in major_ticks]
-    major_ticks_top = [tick.tick2line.get_visible() for tick in major_ticks]
+    major_ticks_bottom = [tick.get_visible() for tick in major_ticks]
+    major_ticks_top = [tick.get_visible() for tick in major_ticks]
 
     major_ticks_bottom_show_all = False
     if len(set(major_ticks_bottom)) == 1 and major_ticks_bottom[0] is True:
