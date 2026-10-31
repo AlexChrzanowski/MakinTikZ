@@ -11,9 +11,9 @@ import numpy as np
 from matplotlib.axes import Subplot
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
+from matplotlib.projections.polar import PolarAxes
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
-from matplotlib.projections.polar import PolarAxes, RadialTick, ThetaTick
 
 from . import _color
 from ._util import _common_texification
@@ -613,9 +613,8 @@ class MyAxes:
         if not self.is_subplot:
             if self.is_polar:
                 return self.data.flavor.end("polaraxis") + "\n\n"
-            else:
-                return self.data.flavor.end("axis") + "\n\n"
-            
+            return self.data.flavor.end("axis") + "\n\n"
+
         if self.is_subplot and self.nsubplots == self.subplot_index:
             self.data.is_in_groupplot_env = False
             return self.data.flavor.end("groupplot") + "\n\n"
@@ -961,7 +960,7 @@ def _get_ticks(
     # Leave the ticks to PGFPlots if not in STRICT mode and if there are no explicit
     # labels.
     if data.strict or is_label_required:
-        if len(ticks):
+        if len(ticks) > 0:
             ff = data.float_format
             axis_options.append(
                 "{}tick={{{}}}".format(xy, ",".join([f"{el:{ff}}" for el in ticks]))
