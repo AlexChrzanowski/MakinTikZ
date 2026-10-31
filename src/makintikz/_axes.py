@@ -279,7 +279,12 @@ class MyAxes:
             xlim1 = np.degrees(xlim1)
 
         self.data.current_axis_options.add(f"xmin={xlim0:{ff}}, xmax={xlim1:{ff}}")
-        self.data.current_axis_options.add(f"ymin={ylim0:{ff}}, ymax={ylim1:{ff}}")
+        if not self.is_polar:
+            # If the plot is polar, allow PGFPlots to manage ymax, since polar plots
+            # require additional margin in the radius to display tick marks that do not
+            # collide with the theta axis.
+            self.data.current_axis_options.add(f"ymin={ylim0:{ff}}, ymax={ylim1:{ff}}")
+
         # When the axis is inverted add additional option
         if xlim != sorted(xlim):
             self.data.current_axis_options.add("x dir=reverse")
@@ -752,7 +757,12 @@ class MyAxes:
 
         # Shifts label options to account for tick length
         # removes initial offset
-        label_options += f"inner sep=0pt, anchor={anchor}, {opposite_axis}shift=0pt, "
+        label_options += f"inner sep=0pt, {opposite_axis}shift=0pt, "
+        if not self.is_polar and "y" not in axis:
+            # Allow PGFPlots to handle polar plot tick label position, to avoid
+            # colliding tick labels with the theta axis
+            label_options += f"anchor={anchor}"
+
         self.data.current_axis_options.add(f"{opposite_axis}ticklabel shift={length}pt")
 
         # Updates label color
@@ -882,8 +892,10 @@ class MyAxes:
             anchor = {"right": "east", "left": "west", "center": "center"}[
                 tick_labels_horizontal_alignment[0]
             ]
-            if not (x_or_y == "x" and anchor == "center") and not (
-                x_or_y == "y" and anchor == "east"
+            if (
+                not (x_or_y == "x" and anchor == "center")
+                and not (x_or_y == "y" and anchor == "east")
+                and not (self.is_polar and x_or_y == "y")
             ):
                 values.append(f"anchor={anchor}")
 
