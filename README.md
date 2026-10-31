@@ -134,6 +134,7 @@ great examples of how to make your plot look even better.
 Of course, not all figures produced by matplotlib can be converted without error.
 Notably, [3D plots don't work](https://github.com/matplotlib/matplotlib/issues/7243).
 
+
 ## Installation
 
 makintikz is [available from the Python Package
@@ -144,6 +145,7 @@ pip install makintikz
 ```
 
 to install.
+
 
 ## Usage
 
@@ -167,7 +169,7 @@ to install.
     ```latex
     \input{/path/to/mytikz}
     ```
-
+    
     Also make sure that the packages for PGFPlots and proper Unicode support and are
     included in the header of your document:
 
@@ -221,6 +223,71 @@ to install.
     The command will remove points that are outside the axes limits, simplify curves and
     reduce point density for the specified target resolution.
 
+
+## .Save() Parameters and Documentation
+
+```makintikz.save()``` can be called with varying parameters:
+
+* ##### ```filepath``` : <em>string or path, required</em>
+     >Indicates where the new makintikz file should be stored and what the file name will be.
+   
+* ##### ```figure``` : <em>figure object or ```"gcf"```, optional</em>
+  
+* ##### ```axis_width``` : <em>string, optional</em>
+     >Specifies figure width in output. Will preserve original diagram ratio if axis_height is not provided.
+     
+* ##### ```axis_height``` : <em>string, optional</em>
+     >Specifies figure height in output. Will preserve original diagram ratio if axis_width is not provided.
+
+* ##### ```textsize``` : <em>float, optional</em>
+     >The text size (in pt) used by the latex document. Default is 10.0 pt.
+
+* ##### ```tex_relative_path_to_data``` : <em>string, optional</em>
+     >By default, when the TikZ file must refer to another file (e.g. a PNG for image plots) the additional file is looked for in a folder relative to the LaTeX file, not the TikZ file.  This argument optionally sets the relative path from the LaTeX file to the data.
+
+* ##### ```externalize_tables``` : <em>boolean, optional</em>
+     >When ``True``, externalizes plot data tables into DAT files. Default is ``False``.
+
+* ##### ```override_externals``` : <em>boolean, optional</em>
+     >When ``True``, overrides existing external files (e.g. DAT or PNG files) with conflicting names. When 'False', chooses other names. Default is ``False``.
+
+* ##### ```strict``` : <em>boolean, optional</em>
+     >When ``True``, creates TikZ file to strictly stick to MatPlotLib's appearance (influences tick mark appearance, etc.). Default is ``False``.
+
+* ##### ```wrap``` : <em>boolean, optional</em>
+     >When ``True``, writes ``'\\begin{tikzpicture}'``/``'\\starttikzpicture'`` and ``'\\end{tikzpicture}'``/``'\\stoptikzpicture'`` to the TikZ file. One might need to provide custom arguments to the environment (eg. scale). Default is ``True``.
+
+* ##### ```add_axis_environment``` : <em>boolean, optional</em>
+    > When ``True``, writes ``'\\begin{axis}[...]'``/`'\\startaxis[...]'` and ``'\\end{axis}'``/``'\\stopaxis'`` to the TikZ file. One may need to set the environment in the document. If ``False``, additionally sets ``wrap=False``. Default is ``True``.
+
+* ##### ```extra_axis_parameters``` : <em>list of strings or set of strings for the pgfplots axes, optional</em>
+     >Extra axis options to be passed to pgfplots.
+
+* ##### ```extra_tikzpicture_parameters``` : <em>set of strings for the pgfplots tikzpicture, optional</em>
+     >Extra tikzpicture options to be passed to pgfplots.
+
+* ##### ```dpi``` : <em>integer, optional</em>
+     >The resolution in dots per inch of the rendered image, to be used in the case of QuadMesh plots. Default is the value in ``savefig.dpi`` from matplotlib.rcParams.
+
+* ##### ```show_info``` : <em>boolean, optional</em>
+     >When ``True``, shows extra info on the command line. Default is ``False``.
+
+* ##### ```include_disclaimer``` : <em>boolean, optional</em>
+     >When ``True``, includes MakinTikZ disclaimer in the output. Set to ``False`` to make tests reproducible. Default is ``True``.
+
+* ##### ```standalone``` : <em>boolean, optional</em>
+     >When ``True``, includes wrapper code for a standalone LaTeX file. Default is ``False``.
+
+* ##### ```float_format``` : <em>string, optional</em>
+     >Indicates the format for float entities. Default is ```".15g"```.
+
+* ##### ```table_row_sep``` : <em>string, optional</em>
+     >Sets the row separator for table data. Default is ```"\\n"```.
+
+* ##### ```flavor``` : <em>string, optional</em>
+     >Indicates the TeX flavor of the output code. Supports ```"latex"``` and ```"context"```. Default is ```"latex"```.
+
+
 ## makintikz vs. matplot2tikz vs. tikzplotlib
 
 The matplot2tikz library and makintikz originated from the [tikzplotlib](https://github.com/nschloe/tikzplotlib)
@@ -245,6 +312,7 @@ If you are updating your own scripts from tikzplotlib, you can simply use an imp
    ```python
    import makintikz as tikzplotlib
    ```
+
 
 ## Contributing
 
@@ -288,6 +356,7 @@ For contributing, follow these steps:
 Note that currently only "Code owners" can merge pull requests onto the `main` branch. This is to
 ensure that not everyone can break the main code (even unintentially). If you want to be a "Code
 owner", let us know!
+
 
 ## License
 
