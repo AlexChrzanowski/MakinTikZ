@@ -135,6 +135,9 @@ class MyAxes:
         self.content: list[str] = []
         self.side_title_content: list[str] = []
 
+        # must be instantiated before _setup_standable_colorbar()
+        self.is_polar = False
+
         # Are we dealing with an axis that hosts a colorbar? Skip then, those are
         # treated implicitily by the associated axis. Exception: standalone colorbar
         # (figure has only this axes) must be processed.
@@ -150,7 +153,6 @@ class MyAxes:
         self.nsubplots = 1
         self.subplot_index = 0
         self.is_subplot = False
-        self.is_polar = False
 
         if isinstance(obj, Subplot):
             self._subplot()
@@ -897,8 +899,10 @@ class MyAxes:
 def _get_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
     major_ticks = obj.xaxis.majorTicks if x_or_y == "x" else obj.yaxis.majorTicks
 
-    major_ticks_bottom = [tick.get_visible() for tick in major_ticks]
-    major_ticks_top = [tick.get_visible() for tick in major_ticks]
+    major_ticks_bottom = [tick.tick1line.get_visible() for tick in major_ticks]
+    major_ticks_top = [tick.tick2line.get_visible() for tick in major_ticks]
+
+    major_ticks_visible = [tick.get_visible() for tick in major_ticks]
 
     major_ticks_bottom_show_all = False
     if len(set(major_ticks_bottom)) == 1 and major_ticks_bottom[0] is True:
@@ -910,7 +914,7 @@ def _get_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
 
     position_string = None
     major_ticks_position = None
-    if not major_ticks_bottom_show_all and not major_ticks_top_show_all:
+    if not major_ticks_visible:
         position_string = f"{x_or_y}majorticks=false"
     elif major_ticks_bottom_show_all and major_ticks_top_show_all:
         major_ticks_position = "both"
