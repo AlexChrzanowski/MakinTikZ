@@ -11,6 +11,7 @@ from matplotlib.lines import Line2D, _get_dash_pattern  # type: ignore[attr-defi
 from matplotlib.markers import MarkerStyle
 from matplotlib.patches import Circle, Ellipse, Rectangle
 from matplotlib.path import Path
+from matplotlib.projections.polar import ThetaAxis, PolarAxes
 
 if TYPE_CHECKING:
     from matplotlib.collections import Collection, PathCollection
@@ -98,16 +99,33 @@ def draw_path(
     path = _clamp_path_for_log_scale(data, path)
 
     x_is_date = _check_x_is_date(data)
+    x_is_polar = _check_x_is_polar(data)
 
     nodes = []
     ff = data.float_format
     xformat = "" if x_is_date else ff
     prev = None
     is_area = False
+
+    polar_segment = ""
     for vert, code in path.iter_segments(simplify=simplify):
         # For path codes see: http://matplotlib.org/api/path_api.html
         is_area = False
-        if code == Path.MOVETO:
+        if x_is_polar:
+            # \path [draw=red, line width=1.5pt]
+            # plot[
+            #     domain=0:45,
+            #     samples=20
+            # ]
+            # (axis cs:\x,0.5);
+            if code == Path.MOVETO:
+                polar_segment = f"plot[domain={np.degrees(vert[0])}:"
+            elif code == Path.LINETO:
+                samples = 5
+                polar_segment += f"{np.degrees(vert[0])},samples={samples}]"
+                nodes.append(polar_segment)
+                nodes.append(f"(axis cs:\\x,{vert[1]})")
+        elif code == Path.MOVETO:
             nodes.append(
                 f"(axis cs:{vert[0] if not x_is_date else num2date(vert[0]):{xformat}},"
                 f"{vert[1]:{ff}})"
@@ -282,6 +300,19 @@ def _check_x_is_date(data: TikzData) -> bool:
     except AttributeError:
         converter = data.current_mpl_axes.xaxis.converter
     return isinstance(converter, DateConverter)
+
+def _check_x_is_polar(data: TikzData) -> bool:
+    if data.current_mpl_axes is None:
+        # This shouldn't be the case
+        msg = "No axes defined."
+        raise ValueError(msg)
+
+    try:
+        ax = data.current_mpl_axes.xaxis  # type: ignore[attr-defined]
+        return isinstance(ax, ThetaAxis)
+    except AttributeError:
+        ax = data.current_mpl_axes
+    return isinstance(ax, PolarAxes)
 
 
 def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
