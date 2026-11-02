@@ -17,7 +17,7 @@ from matplotlib.image import AxesImage
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
-from matplotlib.quiver import QuiverKey
+from matplotlib.quiver import Quiver, QuiverKey
 from matplotlib.spines import Spine
 from matplotlib.text import Text
 from matplotlib.ticker import ScalarFormatter
@@ -425,6 +425,8 @@ def _draw_collection(data: TikzData, child: Collection) -> list[str]:
         return _line2d.draw_linecollection(data, child)
     if isinstance(child, QuadMesh):
         return qmsh.draw_quadmesh(data, child)
+    if isinstance(child, Quiver):
+        return _quiver.draw_quiver(data, child)
     return _patch.draw_patchcollection(data, child)
 
 
