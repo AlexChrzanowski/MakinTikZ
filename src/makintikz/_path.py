@@ -107,24 +107,41 @@ def draw_path(
     prev = None
     is_area = False
 
-    polar_segment = ""
+    # Polar variables (in degrees)
+    theta1 = 0
+    theta2 = 0
+    rad1 = 0
+    rad2 = 0
+
     for vert, code in path.iter_segments(simplify=simplify):
         # For path codes see: http://matplotlib.org/api/path_api.html
         is_area = False
         if x_is_polar:
-            # \path [draw=red, line width=1.5pt]
-            # plot[
-            #     domain=0:45,
-            #     samples=20
-            # ]
-            # (axis cs:\x,0.5);
             if code == Path.MOVETO:
-                polar_segment = f"plot[domain={np.degrees(vert[0])}:"
+                theta1 = np.degrees(vert[0])
+                rad1 = vert[1]
             elif code == Path.LINETO:
-                samples = 5
-                polar_segment += f"{np.degrees(vert[0])},samples={samples}]"
-                nodes.append(polar_segment)
-                nodes.append(f"(axis cs:\\x,{vert[1]})")
+                theta2 = np.degrees(vert[0])
+                rad2 = vert[1]
+
+                if theta1 == theta2:
+                    # If the start and end thetas are equal, then we should interpret
+                    # the path as a vertical (radial) path
+                    nodes.append(
+                        f"(axis cs:{theta1},"
+                        f"{rad1})"
+                    )
+                    nodes.append(
+                        f"--(axis cs:{theta2},"
+                        f"{rad2})"
+                    )
+                else:
+                    # Otherwise interpret as a horizontal (theta) path
+                    samples = int(max((theta2 - theta1) * rad2 / 2, 5))
+                    nodes.append(
+                        f"plot[domain={theta1}:{theta2},samples={samples}]"
+                        f"(axis cs:\\x,{rad2})"
+                    )
         elif code == Path.MOVETO:
             nodes.append(
                 f"(axis cs:{vert[0] if not x_is_date else num2date(vert[0]):{xformat}},"

@@ -251,7 +251,7 @@ def _marker(
 
     _marker_size(data, obj, addplot_options)
     _marker_every(data, obj, addplot_options)
-    _marker_options(data, marker_data, addplot_options)
+    _marker_options(data, obj, marker_data, addplot_options)
 
 
 def _marker_size(data: TikzData, obj: Line2D, addplot_options: list[str]) -> None:
@@ -279,7 +279,7 @@ def _marker_every(data: TikzData, obj: Line2D, addplot_options: list[str]) -> No
                 data.current_axis_options.add("legend image post style={mark indices={}}")
 
 
-def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: list[str]) -> None:
+def _marker_options(data: TikzData, obj: Line2D, marker_data: MarkerData, addplot_options: list[str]) -> None:
     mark_options = ["solid"]
     mark_options += marker_data.mark_options
     if marker_data.fc is None or (isinstance(marker_data.fc, str) and marker_data.fc == "none"):
@@ -299,6 +299,26 @@ def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: li
         draw_xcolor, _ = mycol.mpl_color2xcolor(data, marker_data.ec)
         if draw_xcolor != marker_data.lc:
             mark_options.append("draw=" + draw_xcolor)
+
+    if isinstance(obj.axes, PolarAxes):
+        error_points = []
+        # TODO: only apply if we are sure this is an errorbar
+        try:
+            container = obj.axes.containers[0]
+            error_points = container[0]._x
+        except AttributeError:
+            print("No errorbar container found")
+        except IndexError:
+            print("No errorbar container found")
+
+        xdata = _get_xy_data(data, obj)[0]
+        rotation = np.degrees(xdata[0])
+        if xdata in error_points:
+            # An error bar is radial if the Line2D caps match the angle of the error marker
+            # Then rotate the marker 90 more degrees to be perpendicular to the radial axis
+            rotation += 90
+        mark_options.append("rotate=" + str(rotation))
+
     opts = ",".join(mark_options)
     addplot_options.append(f"mark options={{{opts}}}")
 
