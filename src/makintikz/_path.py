@@ -102,7 +102,7 @@ def draw_path(
     is_area = False
 
     if x_is_polar:
-        nodes.extend(handle_polar_path(path, simplify=simplify))
+        nodes.extend(handle_polar_path(data, path, simplify=simplify))
     else:
         results = handle_cartesian_path(path, data, simplify=simplify)
         nodes.extend(results[0])
@@ -114,7 +114,7 @@ def draw_path(
     return path_command, is_area
 
 
-def handle_polar_path(path: Path, *, simplify: bool | None = None) -> list:
+def handle_polar_path(data: TikzData, path: Path, *, simplify: bool | None = None) -> list:
     # Polar variables (in degrees)
     theta1 = 0
     rad1 = 0
@@ -133,8 +133,13 @@ def handle_polar_path(path: Path, *, simplify: bool | None = None) -> list:
                 nodes.append(f"(axis cs:{theta1},{rad1})")
                 nodes.append(f"--(axis cs:{theta2},{rad2})")
             else:
+                ax = data.current_mpl_axes
+                if ax is not None:
+                    xmax = max(ax.get_xticks())
+                else:
+                    xmax = rad2
                 # Otherwise interpret as a horizontal (theta) path
-                samples = int(max((theta2 - theta1) * rad2 / 2, 5))
+                samples = int(max((theta2 - theta1) * (1 + xmax / rad2) / 2, 5))
                 nodes.append(
                     f"plot[domain={theta1}:{theta2},samples={samples}](axis cs:\\x,{rad2})"
                 )
