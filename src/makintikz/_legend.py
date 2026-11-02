@@ -2,6 +2,7 @@ import warnings
 
 import numpy as np
 from matplotlib.backends import backend_agg
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 from matplotlib.patches import Patch
@@ -19,21 +20,7 @@ def draw_legend(data: TikzData, obj: Legend) -> None:
         texts.append(f"{text.get_text()}")
         children_alignment.append(f"{text.get_horizontalalignment()}")
 
-    # Get effective legend transparency.
-    frame = obj.get_frame()
-    alpha = frame.get_alpha()
-
-    if alpha is None:
-        alpha = frame.get_facecolor()[3]
-
-    legend_style = [
-        f"fill opacity={alpha}",
-        "draw opacity=1",
-        "text opacity=1",
-    ]
-    _legend_position_anchor(data, obj, legend_style)
-    _legend_edgecolor(data, obj, legend_style)
-    _legend_facecolor(data, obj, legend_style)
+    legend_style = _get_legend_style(data, obj)
 
     # Get the horizontal alignment
     try:
@@ -74,6 +61,34 @@ def draw_legend(data: TikzData, obj: Legend) -> None:
         string = j1.join(legend_style)
         style = f"legend style={{{j0}{string}{j2}}}"
         data.current_axis_options.add(style)
+
+
+def _get_legend_style(data: TikzData, obj: Legend) -> list[str]:
+    """Compiles the style options for the legend container."""
+    legend_style = [
+        # https://github.com/matplotlib/matplotlib/issues/15764#issuecomment-557823370
+        "draw opacity=1",
+        "text opacity=1",
+    ]
+
+    # Get effective legend transparency.
+    frame = obj.get_frame()
+    alpha = frame.get_alpha()
+
+    if alpha is None:
+        alpha = float(to_rgba(frame.get_facecolor())[3])
+
+    if not obj.get_frame_on():
+        # Disable the background fill of the frame itself
+        legend_style.insert(0, "fill=none")
+    else:
+        legend_style.insert(0, f"fill opacity={alpha}")
+
+    _legend_position_anchor(data, obj, legend_style)
+    _legend_edgecolor(data, obj, legend_style)
+    _legend_facecolor(data, obj, legend_style)
+
+    return legend_style
 
 
 def _draw_legend_patch_handles(data: TikzData, obj: Legend) -> None:
@@ -230,5 +245,5 @@ def _legend_edgecolor(data: TikzData, obj: Legend, legend_style: list[str]) -> N
 def _legend_facecolor(data: TikzData, obj: Legend, legend_style: list[str]) -> None:
     facecolor = obj.get_frame().get_facecolor()
     fill_xcolor, _ = mycol.mpl_color2xcolor(data, facecolor)
-    if fill_xcolor != "white":  # white is default
+    if obj.get_frame_on() and fill_xcolor != "white":  # white is default
         legend_style.append(f"fill={fill_xcolor}")
