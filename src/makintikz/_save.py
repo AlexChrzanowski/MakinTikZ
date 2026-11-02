@@ -17,6 +17,7 @@ from matplotlib.image import AxesImage
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.quiver import QuiverKey
 from matplotlib.spines import Spine
 from matplotlib.text import Text
 from matplotlib.ticker import ScalarFormatter
@@ -25,7 +26,7 @@ from typing_extensions import NotRequired, Unpack
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
 
-from . import _axes, _legend, _line2d, _patch, _path, _text, _util
+from . import _axes, _legend, _line2d, _patch, _path, _text, _util, _quiver
 from . import _image as img
 from . import _quadmesh as qmsh
 from .__about__ import __version__
@@ -510,6 +511,7 @@ def _recurse(data: TikzData, obj: Artist) -> list:
                 (Patch, _patch.draw_patch),
                 (Collection, _draw_collection),
                 (Text, _text.draw_text),
+                (QuiverKey, _quiver.draw_arrow)
             ):
                 if isinstance(child, child_type):
                     content.extend(process_func(data, child), child.get_zorder())  # type: ignore[arg-type]
