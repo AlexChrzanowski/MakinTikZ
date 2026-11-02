@@ -11,7 +11,7 @@ from matplotlib.lines import Line2D, _get_dash_pattern  # type: ignore[attr-defi
 from matplotlib.markers import MarkerStyle
 from matplotlib.patches import Circle, Ellipse, Rectangle
 from matplotlib.path import Path
-from matplotlib.projections.polar import ThetaAxis, PolarAxes
+from matplotlib.projections.polar import PolarAxes
 
 if TYPE_CHECKING:
     from matplotlib.collections import Collection, PathCollection
@@ -97,52 +97,61 @@ def draw_path(
         return "", False
 
     path = _clamp_path_for_log_scale(data, path)
-
-    x_is_date = _check_x_is_date(data)
     x_is_polar = _check_x_is_polar(data)
+    nodes: list[str] = []
+    is_area = False
 
-    nodes = []
+    if x_is_polar:
+        nodes.extend(handle_polar_path(path, simplify=simplify))
+    else:
+        results = handle_cartesian_path(path, data, simplify=simplify)
+        nodes.extend(results[0])
+        is_area = results[1]
+
+    do = "[{}]".format(", ".join(draw_options)) if draw_options else ""
+    path_command = "\\path {}\n{};\n".format(do, "\n".join(nodes))
+
+    return path_command, is_area
+
+
+def handle_polar_path(path: Path, *, simplify: bool | None = None) -> list:
+    # Polar variables (in degrees)
+    theta1 = 0
+    rad1 = 0
+    nodes: list[str] = []
+
+    for vert, code in path.iter_segments(simplify=simplify):
+        if code == Path.MOVETO:
+            theta1 = np.degrees(vert[0])
+            rad1 = vert[1]
+        elif code == Path.LINETO:
+            theta2 = np.degrees(vert[0])
+            rad2 = vert[1]
+            if theta1 == theta2:
+                # If the start and end thetas are equal, then we should interpret
+                # the path as a vertical (radial) path
+                nodes.append(f"(axis cs:{theta1},{rad1})")
+                nodes.append(f"--(axis cs:{theta2},{rad2})")
+            else:
+                # Otherwise interpret as a horizontal (theta) path
+                samples = int(max((theta2 - theta1) * rad2 / 2, 5))
+                nodes.append(
+                    f"plot[domain={theta1}:{theta2},samples={samples}](axis cs:\\x,{rad2})"
+                )
+    return nodes
+
+
+def handle_cartesian_path(path: Path, data: TikzData, *, simplify: bool | None = None) -> tuple:
+    x_is_date = _check_x_is_date(data)
     ff = data.float_format
     xformat = "" if x_is_date else ff
     prev = None
-    is_area = False
-
-    # Polar variables (in degrees)
-    theta1 = 0
-    theta2 = 0
-    rad1 = 0
-    rad2 = 0
+    nodes: list[str] = []
 
     for vert, code in path.iter_segments(simplify=simplify):
         # For path codes see: http://matplotlib.org/api/path_api.html
         is_area = False
-        if x_is_polar:
-            if code == Path.MOVETO:
-                theta1 = np.degrees(vert[0])
-                rad1 = vert[1]
-            elif code == Path.LINETO:
-                theta2 = np.degrees(vert[0])
-                rad2 = vert[1]
-
-                if theta1 == theta2:
-                    # If the start and end thetas are equal, then we should interpret
-                    # the path as a vertical (radial) path
-                    nodes.append(
-                        f"(axis cs:{theta1},"
-                        f"{rad1})"
-                    )
-                    nodes.append(
-                        f"--(axis cs:{theta2},"
-                        f"{rad2})"
-                    )
-                else:
-                    # Otherwise interpret as a horizontal (theta) path
-                    samples = int(max((theta2 - theta1) * rad2 / 2, 5))
-                    nodes.append(
-                        f"plot[domain={theta1}:{theta2},samples={samples}]"
-                        f"(axis cs:\\x,{rad2})"
-                    )
-        elif code == Path.MOVETO:
+        if code == Path.MOVETO:
             nodes.append(
                 f"(axis cs:{vert[0] if not x_is_date else num2date(vert[0]):{xformat}},"
                 f"{vert[1]:{ff}})"
@@ -201,11 +210,7 @@ def draw_path(
 
         # Store the previous point for quadratic Beziers.
         prev = vert[0:2]
-
-    do = "[{}]".format(", ".join(draw_options)) if draw_options else ""
-    path_command = "\\path {}\n{};\n".format(do, "\n".join(nodes))
-
-    return path_command, is_area
+    return nodes, is_area
 
 
 def _clip_circle(clip_path: Circle, ff: str) -> str:
@@ -318,17 +323,13 @@ def _check_x_is_date(data: TikzData) -> bool:
         converter = data.current_mpl_axes.xaxis.converter
     return isinstance(converter, DateConverter)
 
+
 def _check_x_is_polar(data: TikzData) -> bool:
     if data.current_mpl_axes is None:
         # This shouldn't be the case
         msg = "No axes defined."
         raise ValueError(msg)
-
-    try:
-        ax = data.current_mpl_axes.xaxis  # type: ignore[attr-defined]
-        return isinstance(ax, ThetaAxis)
-    except AttributeError:
-        ax = data.current_mpl_axes
+    ax = data.current_mpl_axes
     return isinstance(ax, PolarAxes)
 
 

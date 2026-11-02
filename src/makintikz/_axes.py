@@ -274,7 +274,7 @@ class MyAxes:
         ylim = list(self.obj.get_ylim())
         ylim0, ylim1 = sorted(ylim)
         # Sort the limits so make sure that the smaller of the two is actually *min.
-        if self.is_polar:
+        if hasattr(self, "is_polar") and self.is_polar:
             xlim0 = np.degrees(xlim0)
             xlim1 = np.degrees(xlim1)
 
