@@ -134,10 +134,7 @@ def handle_polar_path(data: TikzData, path: Path, *, simplify: bool | None = Non
                 nodes.append(f"--(axis cs:{theta2},{rad2})")
             else:
                 ax = data.current_mpl_axes
-                if ax is not None:
-                    xmax = max(ax.get_xticks())
-                else:
-                    xmax = rad2
+                xmax = max(ax.get_xticks()) if ax is not None else rad2
                 # Otherwise interpret as a horizontal (theta) path
                 samples = int(max((theta2 - theta1) * (1 + xmax / rad2) / 2, 5))
                 nodes.append(
