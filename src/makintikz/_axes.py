@@ -255,7 +255,9 @@ class MyAxes:
                 self.data.current_axis_options.add(f"xlabel={{{xlabel}}}")
 
             xrotation = self.obj.xaxis.get_label().get_rotation()
-            if xrotation != 0 and not self.is_3d:
+            if self.is_3d:
+                self.data.current_axis_options.add(f"xlabel style={"sloped"}")
+            elif xrotation != 0:
                 self.data.current_axis_options.add(f"xlabel style={{rotate={xrotation - 90}}}")
 
         ylabel = self.obj.get_ylabel()
@@ -270,20 +272,23 @@ class MyAxes:
                 self.data.current_axis_options.add(f"ylabel={{{ylabel}}}")
 
             yrotation = self.obj.yaxis.get_label().get_rotation()
-            if yrotation != 90 and not self.is_3d:  # noqa: PLR2004
+            if self.is_3d:
+                self.data.current_axis_options.add(f"ylabel style={"sloped"}")
+            elif yrotation != 90:  # noqa: PLR2004
                 self.data.current_axis_options.add(f"ylabel style={{rotate={yrotation - 90}}}")
 
-        zlabel = self.obj.get_ylabel()
-        if zlabel:
-            zlabel = _common_texification(zlabel)
+        if self.is_3d:
+            zlabel = self.obj.get_ylabel()
+            if zlabel:
+                zlabel = _common_texification(zlabel)
 
-            labelcolor = self.obj.yaxis.label.get_color()
-            if labelcolor != "black":
-                col, _ = _color.mpl_color2xcolor(self.data, labelcolor)
-                self.data.current_axis_options.add(f"zlabel=\\textcolor{{{col}}}{{{zlabel}}}")
-            else:
-                self.data.current_axis_options.add(f"zlabel={{{zlabel}}}")
-            # let pgfplots handle zlabel rotation
+                labelcolor = self.obj.yaxis.label.get_color()
+                if labelcolor != "black":
+                    col, _ = _color.mpl_color2xcolor(self.data, labelcolor)
+                    self.data.current_axis_options.add(f"zlabel=\\textcolor{{{col}}}{{{zlabel}}}")
+                else:
+                    self.data.current_axis_options.add(f"zlabel={{{zlabel}}}")
+                # let pgfplots handle zlabel rotation
 
     def _set_axis_limits(self) -> tuple[list[float], list[float], list[float] | None]:
         ff = self.data.float_format
