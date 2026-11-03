@@ -255,7 +255,7 @@ class MyAxes:
                 self.data.current_axis_options.add(f"xlabel={{{xlabel}}}")
 
             xrotation = self.obj.xaxis.get_label().get_rotation()
-            if xrotation != 0:
+            if xrotation != 0 and not self.is_3d:
                 self.data.current_axis_options.add(f"xlabel style={{rotate={xrotation - 90}}}")
 
         ylabel = self.obj.get_ylabel()
@@ -270,10 +270,20 @@ class MyAxes:
                 self.data.current_axis_options.add(f"ylabel={{{ylabel}}}")
 
             yrotation = self.obj.yaxis.get_label().get_rotation()
-            if yrotation != 90:  # noqa: PLR2004
+            if yrotation != 90 and not self.is_3d:  # noqa: PLR2004
                 self.data.current_axis_options.add(f"ylabel style={{rotate={yrotation - 90}}}")
 
-        # TODO: add zlabel handling
+        zlabel = self.obj.get_ylabel()
+        if zlabel:
+            zlabel = _common_texification(zlabel)
+
+            labelcolor = self.obj.yaxis.label.get_color()
+            if labelcolor != "black":
+                col, _ = _color.mpl_color2xcolor(self.data, labelcolor)
+                self.data.current_axis_options.add(f"zlabel=\\textcolor{{{col}}}{{{zlabel}}}")
+            else:
+                self.data.current_axis_options.add(f"zlabel={{{zlabel}}}")
+            # let pgfplots handle zlabel rotation
 
     def _set_axis_limits(self) -> tuple[list[float], list[float], list[float] | None]:
         ff = self.data.float_format
@@ -825,8 +835,7 @@ class MyAxes:
                 if self.data.strict:
                     tick_options += ", "
                     params = self.obj.get_zaxis().get_tick_params()
-                    tick_options += self._get_tick_style_options(params, "z", is_minor=False)
-                    label_options = self._get_tick_label_options(params, "z")
+                    # Do not get ztick styles - there are no ztick related rcParam keys in Matplotlib
                     self.data.current_axis_options.add(f"zticklabel style={{{label_options}}}")
                 self.data.current_axis_options.add(
                     f"ztick style={{color={ztickcolor}{tick_options.strip()}}}"
@@ -1053,7 +1062,7 @@ class MyAxes:
         elev = getattr(self.obj, "elev", None)
         # MakinTikz will directly use the view and not a "default"
         if azim is not None and elev is not None:
-            self.data.current_axis_options.add(f"view={{{azim}}}{{{elev}}}")
+            self.data.current_axis_options.add(f"view={{{azim + 90}}}{{{elev}}}")
 
 
 # TODO: z functionality for _get_tick_position
