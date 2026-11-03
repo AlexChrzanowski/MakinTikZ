@@ -278,7 +278,7 @@ class MyAxes:
                 self.data.current_axis_options.add(f"ylabel style={{rotate={yrotation - 90}}}")
 
         if self.is_3d:
-            zlabel = self.obj.get_ylabel()
+            zlabel = self.obj.get_zlabel()
             if zlabel:
                 zlabel = _common_texification(zlabel)
 
