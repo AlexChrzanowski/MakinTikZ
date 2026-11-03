@@ -941,7 +941,7 @@ class MyAxes:
                 # y_tick_dirs must be present
                 direction = y_tick_dirs[0]
 
-            if direction:
+            if direction and not (self.is_3d and not self.data.strict):
                 if direction == "in":
                     # 'tick align=inside' is the PGFPlots default
                     pass
@@ -975,13 +975,14 @@ class MyAxes:
         # When x-ticks are only on top (tick_top), use xtick pos=right only - do NOT
         # use axis x line*=top, which would remove the bottom axis line. Matplotlib
         # keeps the bottom axis line and only moves ticks to top.
-        if x_tick_position == y_tick_position and x_tick_position is not None:
-            self.data.current_axis_options.add(f"tick pos={x_tick_position}")
-        else:
-            if x_tick_position_string is not None:
-                self.data.current_axis_options.add(x_tick_position_string)
-            if y_tick_position_string is not None:
-                self.data.current_axis_options.add(y_tick_position_string)
+        if not self.is_3d and not self.data.strict:
+            if x_tick_position == y_tick_position and x_tick_position is not None:
+                self.data.current_axis_options.add(f"tick pos={x_tick_position}")
+            else:
+                if x_tick_position_string is not None:
+                    self.data.current_axis_options.add(x_tick_position_string)
+                if y_tick_position_string is not None:
+                    self.data.current_axis_options.add(y_tick_position_string)
 
     def _subplot(self) -> None:
         # https://github.com/matplotlib/matplotlib/issues/7225#issuecomment-252173667
@@ -1048,6 +1049,7 @@ class MyAxes:
                 not (x_or_y == "x" and anchor == "center")
                 and not (x_or_y == "y" and anchor == "east")
                 and not (self.is_polar and x_or_y == "y")
+                and not (self.is_3d)
             ):
                 values.append(f"anchor={anchor}")
 
