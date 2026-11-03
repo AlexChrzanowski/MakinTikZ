@@ -54,8 +54,8 @@ def get_legend_text(obj: Artist) -> str | None:
 
 
 def transform_to_data_coordinates(
-    obj: Line2D, xdata: np.ndarray, ydata: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+    obj: Line2D, xdata: np.ndarray, ydata: np.ndarray, zdata: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
     """The coordinates might not be in data coordinates, but could be sometimes in axes coordinates.
 
     For example, the matplotlib command
@@ -65,15 +65,24 @@ def transform_to_data_coordinates(
       1. first transforming to display coordinates, then
       2. from display to data.
     """
-    if obj.axes is not None and obj.get_transform() != obj.axes.transData:
-        points = np.array([xdata, ydata]).T
-        transform = matplotlib.transforms.composite_transform_factory(
-            obj.get_transform(), obj.axes.transData.inverted()
-        )
-        xdata, ydata = transform.transform(points).T
+    if zdata is None:
+        if obj.axes is not None and obj.get_transform() != obj.axes.transData:
+            points = np.array([xdata, ydata]).T
+            transform = matplotlib.transforms.composite_transform_factory(
+                obj.get_transform(), obj.axes.transData.inverted()
+            )
+            xdata, ydata = transform.transform(points).T
+            return xdata, ydata
         return xdata, ydata
-    return xdata, ydata
-
+    else:
+        if obj.axes is not None and obj.get_transform() != obj.axes.transData:
+            points = np.array([xdata, ydata, zdata]).T
+            transform = matplotlib.transforms.composite_transform_factory(
+                obj.get_transform(), obj.axes.transData.inverted()
+            )
+            xdata, ydata, zdata = transform.transform(points).T
+            return xdata, ydata, zdata
+        return xdata, ydata, zdata
 
 _NO_ESCAPE = r"(?<!\\)(?:\\\\)*"
 _split_math = re.compile(_NO_ESCAPE + r"\$").split

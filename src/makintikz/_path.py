@@ -287,25 +287,50 @@ def _check_x_is_date(data: TikzData) -> bool:
 def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
     """Returns PGFPlots code for a number of patch objects."""
     content = []
-    # gather data
-    dd = obj.get_offsets()
-    if not isinstance(dd, Iterable):
-        # No idea what to draw.
-        return []
 
-    path_collection_data = PathCollectionData(
-        obj=obj,
+    is_3d = hasattr(obj, "_offsets3d")
+
+    if is_3d:
+        xs, ys, zs = obj._offsets3d  # type: ignore[attr-defined]
+        if len(xs) == 0:
+            return []
+        # Transpose (xs, ys, zs) into Nx3 rows of strings
+        coords = np.column_stack([xs, ys, zs])
+        dd_strings = np.array(
+            [
+                [f"{val:{data.float_format}}" for val in row]
+                for row in coords
+            ]
+        )
+        labels = ["x", "y", "z"]
+        is_contour = False
+    else:
+        # 2D logic
+        # gather data
+        dd = obj.get_offsets()
+        if not isinstance(dd, Iterable):
+            # No idea what to draw.
+            return []
         dd_strings=np.array(
             [
                 [f"{val:{data.float_format}}" for val in row]  # type: ignore[str-bytes-safe]
                 for row in dd
                 if isinstance(row, Iterable)
             ]
-        ),
+        )
+        labels=["x", "y"]
+        is_contour=isinstance(dd, Sized) and len(dd) == 1
+
+    if len(dd_strings) == 0:
+        return []
+
+    path_collection_data = PathCollectionData(
+        obj=obj,
+        dd_strings=dd_strings,
         draw_options=["only marks"],
-        labels=["x", "y"],
+        labels=labels,
         table_options=[],
-        is_contour=isinstance(dd, Sized) and len(dd) == 1,
+        is_contour=is_contour,
     )
     line_data = LineData(obj=obj)
 
@@ -324,6 +349,8 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
 
     _draw_pathcollection_drawoptions(data, path_collection_data, line_data)
 
+    plot_cmd = "\\addplot3" if is_3d else "\\addplot"
+
     for path in obj.get_paths():
         _draw_pathcollection_draw_contour(path, data, path_collection_data)
         _draw_pathcollection_scatter_sizes(data, path_collection_data)
@@ -335,7 +362,7 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
         len_row = sum(len(item) for item in draw_options)
         j0, j1, j2 = ("", ", ", "") if len_row < max_row_length else ("\n  ", ",\n  ", "\n")
         do = f" [{j0}{{}}{j2}]".format(j1.join(draw_options)) if draw_options else ""
-        content.append(f"\\addplot{do}\n")
+        content.append(f"{plot_cmd}{do}\n")
 
         if data.externals_search_path is not None:
             esp = data.externals_search_path
@@ -381,7 +408,11 @@ def _draw_pathcollection_scatter_colormap(data: TikzData, pcd: PathCollectionDat
         pcd.dd_strings = np.column_stack([pcd.dd_strings, obj_array])
     pcd.labels.append("colordata")
     pcd.draw_options.append("scatter src=explicit")
-    pcd.table_options.extend(["x=x", "y=y", "meta=colordata"])
+    if hasattr(pcd.obj, "_offsets3d"):
+        pcd.table_options.extend(["x=x", "y=y", "z=z", "meta=colordata"])
+    else:
+        pcd.table_options.extend(["x=x", "y=y", "meta=colordata"])
+    
     if pcd.obj.get_cmap():
         mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(pcd.obj.get_cmap(), data)
         pcd.draw_options.append("scatter")
