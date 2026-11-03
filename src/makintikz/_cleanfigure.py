@@ -41,6 +41,7 @@ class CleanFigureData:
     visual_data: np.ndarray | None = None
     x_lim: np.ndarray = field(default_factory=initial_axis_limits)
     y_lim: np.ndarray = field(default_factory=initial_axis_limits)
+    z_lim: np.ndarray | None = None
     has_lines: bool | None = None
     has_markers: bool | None = None
 
@@ -198,7 +199,7 @@ def _cleanline(
         warnings.warn("step plot simplification not yet implemented.", stacklevel=2)
     else:
         cfd.data = _get_line_data(linehandle)
-        cfd.x_lim, cfd.y_lim = _get_visual_limits(cfd.axes)
+        cfd.x_lim, cfd.y_lim, cfd.z_lim = _get_visual_limits(cfd.axes)
         cfd.visual_data = _get_visual_data(cfd.axes, cfd.data)
         cfd.has_lines = _line_has_lines(linehandle)
 
@@ -235,7 +236,7 @@ def _clean_collections(
     )
 
     cfd.data = _get_collection_data(collection)
-    cfd.x_lim, cfd.y_lim = _get_visual_limits(cfd.axes)
+    cfd.x_lim, cfd.y_lim, cfd.z_lim = _get_visual_limits(cfd.axes)
     cfd.visual_data = _get_visual_data(cfd.axes, cfd.data)
 
     cfd.has_lines = True
@@ -243,15 +244,19 @@ def _clean_collections(
     cfd.data = _prune_outside_box(cfd)
     cfd.visual_data = _get_visual_data(cfd.axes, cfd.data)
 
-    if not isinstance(collection, art3d.Path3DCollection):
+    if not isinstance(cfd.axes, Axes3D):
         cfd.visual_data = _move_points_closer(cfd.y_lim, cfd.visual_data)
-        cfd.visual_data = _get_visual_data(cfd.axes, cfd.visual_data)
 
     cfd.has_markers = True
     cfd.has_lines = False
     data = _simplify_line(cfd)
     data = _limit_precision(cfd.axes, data, cfd.scale_precision)
-    collection.set_offsets(data)
+
+    if isinstance(cfd.axes, Axes3D):
+        x_data, y_data, z_data = _split_data_3d(data)
+        collection._offsets3d = (x_data, y_data, z_data)  # noqa: SLF001
+    else:
+        collection.set_offsets(data)
 
 
 def _is_step(linehandle: Line2D | art3d.Line3D) -> bool:
@@ -259,8 +264,8 @@ def _is_step(linehandle: Line2D | art3d.Line3D) -> bool:
     return linehandle._drawstyle in STEP_DRAW_STYLES  # type: ignore[union-attr]  # noqa: SLF001
 
 
-def _get_visual_limits(axhandle: Axes) -> tuple[np.ndarray, np.ndarray]:
-    """Returns the visual representation of the axis limits (x & y).
+def _get_visual_limits(axhandle: Axes) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Returns the visual representation of the axis limits (x & y (& z if applicable)).
 
     Respecting possible log_scaling and projection into the image plane.
     """
@@ -272,12 +277,14 @@ def _get_visual_limits(axhandle: Axes) -> tuple[np.ndarray, np.ndarray]:
     if _ax_is_ylog(axhandle):
         y_lim = np.log10(y_lim)
 
+    z_lim: np.ndarray | None = None
+
     if isinstance(axhandle, Axes3D):
         z_lim = np.array(axhandle.get_zlim())
         if _ax_is_zlog(axhandle):
             z_lim = np.log10(z_lim)
 
-        p = _get_projection_matrix(axhandle)
+        p = axhandle.get_proj()  # trial: removing get_projection_matrix
 
         corners = _corners3d(x_lim, y_lim, z_lim)
 
@@ -291,7 +298,7 @@ def _get_visual_limits(axhandle: Axes) -> tuple[np.ndarray, np.ndarray]:
         x_lim = np.array([np.min(x_corners), np.max(x_corners)])
         y_lim = np.array([np.min(y_corners), np.max(y_corners)])
 
-    return x_lim, y_lim
+    return x_lim, y_lim, z_lim
 
 
 def _replace_data_with_nan(data: np.ndarray, id_replace: np.ndarray) -> np.ndarray:
@@ -443,8 +450,9 @@ def _get_line_data(linehandle: Line2D | art3d.Line3D) -> np.ndarray:
 def _get_collection_data(collection: PathCollection | art3d.Path3DCollection) -> np.ndarray:
     if isinstance(collection, art3d.Path3DCollection):
         # https://stackoverflow.com/questions/51716696/extracting-data-from-a-3d-scatter-plot-in-matplotlib
-        offsets = collection._offsets3d  # noqa: SLF001
-        x_data, y_data, z_data = (o.data for o in offsets)
+        x_data, y_data, z_data = collection._offsets3d  # noqa: SLF001
+        x_data = np.array(x_data)  # Needed, because it can be a memoryview.
+        y_data = np.array(y_data)  # Needed, because it can be a memoryview.
         z_data = np.array(z_data)  # Needed, because it can be a memoryview.
         data = _stack_data_3d(x_data, y_data, z_data)
     else:
@@ -473,7 +481,7 @@ def _get_visual_data(axhandle: Axes | Axes3D, data: np.ndarray) -> np.ndarray:
         if axhandle.get_zscale() == "log":
             z_data = np.log10(z_data)
 
-        p = _get_projection_matrix(axhandle)
+        p = axhandle.get_proj()  # trial: removing _get_projection_matrix
 
         points = np.stack([x_data, y_data, z_data, np.ones_like(z_data)], axis=1)
         data_projected = p @ points.T
@@ -948,40 +956,6 @@ def _corners3d(
             upper_top_right,
         ]
     )
-
-
-def _get_projection_matrix(axhandle: Axes3D) -> np.ndarray:
-    """Get Projection matrix that projects 3D points into 2D image plane.
-
-    :returns: Projection matrix P
-    """
-    az = np.deg2rad(axhandle.azim)
-    el = np.deg2rad(axhandle.elev)
-    rotation_z = np.array(
-        [
-            [np.cos(-az), -np.sin(-az), 0, 0],
-            [np.sin(-az), np.cos(-az), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ]
-    )
-    rotation_x = np.array(
-        [
-            [1, 0, 0, 0],
-            [0, np.sin(el), np.cos(el), 0],
-            [0, -np.cos(el), np.sin(el), 0],
-            [0, 0, 0, 1],
-        ]
-    )
-    x_lim = axhandle.get_xlim3d()
-    y_lim = axhandle.get_ylim3d()
-    z_lim = axhandle.get_zlim3d()
-
-    aspect_ratio = np.array([x_lim[1] - x_lim[0], y_lim[1] - x_lim[0], z_lim[1] - z_lim[0]])
-    aspect_ratio /= aspect_ratio[-1]
-    scale_matrix = np.diag(np.concatenate([aspect_ratio, np.array([1.0])]))
-
-    return rotation_x @ rotation_z @ scale_matrix
 
 
 def _segments_intersect(

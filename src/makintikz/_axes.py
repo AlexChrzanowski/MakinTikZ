@@ -20,6 +20,7 @@ from ._util import _common_texification
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.axis import Axis
     from matplotlib.lines import Line2D
 
     from ._tikzdata import TikzData
@@ -163,7 +164,7 @@ class MyAxes:
         self._set_hide_axis()
         self._set_plot_title()
         self._set_axis_titles()
-        xlim, ylim, zlim = self._set_axis_limits()
+        xlim, ylim, _zlim = self._set_axis_limits()
         self._set_axis_scaling()
         self._set_axis_on_top()
         self._set_axis_dimensions(self._get_aspect_ratio(), xlim, ylim)
@@ -290,7 +291,7 @@ class MyAxes:
             self.data.current_axis_options.add(f"zmin={zlim0:{ff}}, zmax={zlim1:{ff}}")
             if zlim != sorted(zlim):
                 self.data.current_axis_options.add("z dir=reverse")
-        
+
         return xlim, ylim, zlim
 
     def _set_axis_scaling(self) -> None:
@@ -332,48 +333,48 @@ class MyAxes:
         self, aspect_num: float | None, xlim: list[float], ylim: list[float]
     ) -> None:
         if self.is_3d:
-            # Matplotlib 3D aspect ratio can be 'equal' or a tuple/string
-            box_aspect = getattr(self.obj, "get_box_aspect", lambda: None)()
-            if aspect_num == 1.0 or (box_aspect is not None and np.allclose(box_aspect, 1.0)):
-                self.data.current_axis_options.add("unit vector ratio=1 1 1") # there is no axis equal image for 3D plots
+            self._apply_3d_axis_dimensions(aspect_num)
+        else:
+            self._apply_2d_axis_dimensions(aspect_num, xlim, ylim)
 
-            if self.data.axis_width:
-                self.data.current_axis_options.add("width=" + self.data.axis_width)
-            if self.data.axis_height:
-                self.data.current_axis_options.add("height=" + self.data.axis_height)
-            return
-        
+    def _apply_3d_axis_dimensions(self, aspect_num: float | None) -> None:
+        box_aspect = getattr(self.obj, "get_box_aspect", lambda: None)()
+        is_box_equal = box_aspect is not None and np.allclose(box_aspect, 1.0)
+
+        if aspect_num == 1.0 or is_box_equal:
+            self.data.current_axis_options.add("unit vector ratio=1 1 1")
+
+        self._sync_dimension_options()
+
+    def _apply_2d_axis_dimensions(
+        self, aspect_num: float | None, xlim: list[float], ylim: list[float]
+    ) -> None:
         if aspect_num == 1.0:
-            # Equal aspect (e.g. set_aspect("equal")): ensure circles appear round
             self.data.current_axis_options.add("axis equal image")
-        if self.data.axis_width and self.data.axis_height:
-            # width and height overwrite aspect ratio
-            self.data.current_axis_options.add("width=" + self.data.axis_width)
-            self.data.current_axis_options.add("height=" + self.data.axis_height)
-        elif self.data.axis_width:
-            # only self.data.axis_width given. calculate height by the aspect ratio
-            self.data.current_axis_options.add("width=" + self.data.axis_width)
-            if aspect_num:
-                alpha = aspect_num * (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
-                if alpha == 1.0:
-                    self.data.axis_height = self.data.axis_width
-                else:
-                    # Concatenate the literals, as self.data.axis_width could as well
-                    # be a LaTeX length variable such as \figurewidth.
-                    self.data.axis_height = str(alpha) + "*" + self.data.axis_width
-                self.data.current_axis_options.add("height=" + self.data.axis_height)
-        elif self.data.axis_height:
-            # only self.data.axis_height given. calculate width by the aspect ratio
-            self.data.current_axis_options.add("height=" + self.data.axis_height)
-            if aspect_num:
-                alpha = aspect_num * (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
-                if alpha == 1.0:
-                    self.data.axis_width = self.data.axis_height
-                else:
-                    # Concatenate the literals, as self.data.axis_height could as
-                    # well be a LaTeX length variable such as \figureheight.
-                    self.data.axis_width = str(1.0 / alpha) + "*" + self.data.axis_height
-                self.data.current_axis_options.add("width=" + self.data.axis_width)
+
+        has_width = bool(self.data.axis_width)
+        has_height = bool(self.data.axis_height)
+
+        # Infer the missing dimension if exactly one is provided
+        if has_width != has_height and aspect_num:
+            alpha = aspect_num * (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
+            if has_width:
+                self.data.axis_height = self._scale_dimension(alpha, self.data.axis_width)
+            else:
+                self.data.axis_width = self._scale_dimension(1.0 / alpha, self.data.axis_height)
+
+        self._sync_dimension_options()
+
+    def _scale_dimension(self, factor: float, base_dim: str) -> str:
+        """Scale a dimension string or LaTeX length variable."""
+        return base_dim if factor == 1.0 else f"{factor}*{base_dim}"
+
+    def _sync_dimension_options(self) -> None:
+        """Add width and height to current_axis_options if defined."""
+        if self.data.axis_width:
+            self.data.current_axis_options.add(f"width={self.data.axis_width}")
+        if self.data.axis_height:
+            self.data.current_axis_options.add(f"height={self.data.axis_height}")
 
     def _set_axis_positions(self) -> None:
         # TODO: confirm this is proper z handling, fix if not
@@ -393,105 +394,58 @@ class MyAxes:
         self._set_tick_rotation()
         self._set_tick_positions()
 
-    def _set_grid(self) -> None:
-        # Don't use get_{x,y}gridlines for gridlines; see discussion on
-        # <http://sourceforge.net/p/matplotlib/mailman/message/25169234/> Coordinate of
-        # the lines are entirely meaningless, but styles (colors,...) are respected.
-
+    @staticmethod
+    def _get_axis_grid_state(axis: Axis) -> tuple[bool, bool]:
+        """Extract (has_major, has_minor) grid visibility across mpl versions."""
         try:
             # mpl 3.3.3+
-            # <https://github.com/matplotlib/matplotlib/pull/18769>
-            has_major_xgrid = self.obj.xaxis._major_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
-            has_minor_xgrid = self.obj.xaxis._minor_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
-            has_major_ygrid = self.obj.yaxis._major_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
-            has_minor_ygrid = self.obj.yaxis._minor_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
+            return (
+                axis._major_tick_kw["gridOn"],  # type: ignore[attr-defined] # noqa: SLF001
+                axis._minor_tick_kw["gridOn"],  # type: ignore[attr-defined] # noqa: SLF001
+            )
         except KeyError:
-            has_major_xgrid = self.obj.xaxis._gridOnMajor  # type: ignore[attr-defined]  # noqa: SLF001
-            has_minor_xgrid = self.obj.xaxis._gridOnMinor  # type: ignore[attr-defined]  # noqa: SLF001
-            has_major_ygrid = self.obj.yaxis._gridOnMajor  # type: ignore[attr-defined]  # noqa: SLF001
-            has_minor_ygrid = self.obj.yaxis._gridOnMinor  # type: ignore[attr-defined]  # noqa: SLF001
+            return (
+                getattr(axis, "_gridOnMajor", False),  # type: ignore[attr-defined]
+                getattr(axis, "_gridOnMinor", False),  # type: ignore[attr-defined]
+            )
 
-        if has_major_xgrid:
-            self.data.current_axis_options.add("xmajorgrids")
-        if has_minor_xgrid:
-            self.data.current_axis_options.add("xminorgrids")
+    def _process_axis_grid(self, name: str, axis: Axis, gridlines: list[Line2D]) -> None:
+        """Process grid state, options, and styling for a single axis."""
+        has_major, has_minor = self._get_axis_grid_state(axis)
 
-        xlines = self.obj.get_xgridlines()
-        x_major_line = _first_visible_gridline(xlines) if has_major_xgrid else None
-        x_minor_line = _first_visible_minor_gridline(self.obj.xaxis) if has_minor_xgrid else None
-        x_orphan = None
-        if not has_major_xgrid and not has_minor_xgrid and xlines:
-            x_orphan = xlines[0]
+        if has_major:
+            self.data.current_axis_options.add(f"{name}majorgrids")
+        if has_minor:
+            self.data.current_axis_options.add(f"{name}minorgrids")
 
-        _add_axis_grid_styles(
-            self.data,
-            _AxisGridStyleSpec(
-                xyz="x",
-                has_major=has_major_xgrid,
-                has_minor=has_minor_xgrid,
-                major_line=x_major_line,
-                minor_line=x_minor_line,
-                orphan_style_line=x_orphan,
-            ),
-        )
-
-        if has_major_ygrid:
-            self.data.current_axis_options.add("ymajorgrids")
-        if has_minor_ygrid:
-            self.data.current_axis_options.add("yminorgrids")
-
-        ylines = self.obj.get_ygridlines()
-        y_major_line = _first_visible_gridline(ylines) if has_major_ygrid else None
-        y_minor_line = _first_visible_minor_gridline(self.obj.yaxis) if has_minor_ygrid else None
-        y_orphan = None
-        if not has_major_ygrid and not has_minor_ygrid and ylines:
-            y_orphan = ylines[0]
+        orphan_line = gridlines[0] if (not has_major and not has_minor and gridlines) else None
 
         _add_axis_grid_styles(
             self.data,
             _AxisGridStyleSpec(
-                xyz="y",
-                has_major=has_major_ygrid,
-                has_minor=has_minor_ygrid,
-                major_line=y_major_line,
-                minor_line=y_minor_line,
-                orphan_style_line=y_orphan,
+                xyz=name,
+                has_major=has_major,
+                has_minor=has_minor,
+                major_line=_first_visible_gridline(gridlines) if has_major else None,
+                minor_line=_first_visible_minor_gridline(axis) if has_minor else None,
+                orphan_style_line=orphan_line,
             ),
         )
+
+    def _set_grid(self) -> None:
+        # Don't use get_{x,y}gridlines for gridlines; see discussion on
+        # <http://sourceforge.net/p/matplotlib/mailman/message/25169234/>
+        # Coordinates of the lines are entirely meaningless, but styles are respected.
+        axes: list[tuple[str, Axis, list[Line2D]]] = [
+            ("x", self.obj.xaxis, self.obj.get_xgridlines()),
+            ("y", self.obj.yaxis, self.obj.get_ygridlines()),
+        ]
 
         if self.is_3d:
-            # Axes3D uses ._grid_info or axis tick dicts
-            try:
-                has_major_zgrid = self.obj.zaxis._major_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
-                has_minor_zgrid = self.obj.zaxis._minor_tick_kw["gridOn"]  # type: ignore[attr-defined]  # noqa: SLF001
-            except KeyError:
-                has_major_zgrid = self.obj.zaxis._gridOnMajor  # type: ignore[attr-defined]  # noqa: SLF001
-                has_minor_zgrid = self.obj.zaxis._gridOnMinor  # type: ignore[attr-defined]  # noqa: SLF001
-            
-            if has_major_zgrid:
-                self.data.current_axis_options.add("zmajorgrids")
-            if has_minor_zgrid:
-                self.data.current_axis_options.add("zminorgrids")
+            axes.append(("z", self.obj.zaxis, self.obj.get_zgridlines()))
 
-            zlines = self.obj.get_zgridlines()
-            z_major_line = _first_visible_gridline(zlines) if has_major_zgrid else None
-            z_minor_line = _first_visible_minor_gridline(self.obj.zaxis) if has_minor_zgrid else None
-            z_orphan = None
-            if not has_major_zgrid and not has_minor_zgrid and zlines:
-                z_orphan = zlines[0]
-
-            _add_axis_grid_styles(
-                self.data,
-                _AxisGridStyleSpec(
-                    xyz="z",
-                    has_major=has_major_zgrid,
-                    has_minor=has_minor_zgrid,
-                    major_line=z_major_line,
-                    minor_line=z_minor_line,
-                    orphan_style_line=z_orphan,
-                ),
-            )
-        
+        for name, axis, lines in axes:
+            self._process_axis_grid(name, axis, lines)
 
     def _set_axes_grid(self) -> None:
         # TODO: add z coordinate handling to this method
@@ -545,7 +499,7 @@ class MyAxes:
         else:
             # Assume that the bottom edge color is the color of the entire box.
             axcol = self.obj.spines["bottom"].get_edgecolor()
-        
+
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
         if col != "black":
             self.data.current_axis_options.add(f"axis line style={{{col}}}")
@@ -747,62 +701,38 @@ class MyAxes:
                 )
             )
 
+    def _process_single_axis_tick_style(self, axis_name: str) -> None:
+        """Extract and register tick styling options for a single axis ('x', 'y', or 'z')."""
+        get_ticklines = getattr(self.obj, f"get_{axis_name}ticklines")
+        ticklines = get_ticklines()
+        if not ticklines:
+            return
+
+        c0 = ticklines[0].get_color()
+        color, _ = _color.mpl_color2xcolor(self.data, c0)
+
+        tick_options = ""
+        if self.data.strict:
+            get_axis = getattr(self.obj, f"get_{axis_name}axis")
+            params = get_axis().get_tick_params()
+            extra_options = self._get_tick_style_options(params, axis_name, is_minor=False)
+            tick_options = f", {extra_options}"
+
+            label_options = self._get_tick_label_options(params, axis_name)
+            self.data.current_axis_options.add(f"{axis_name}ticklabel style={{{label_options}}}")
+
+        self.data.current_axis_options.add(
+            f"{axis_name}tick style={{color={color}{tick_options.strip()}}}"
+        )
+
     def _get_tick_style(self) -> None:
         """Gets tick styling options, such as tick color, length, size, and label font size."""
-        try:
-            l0 = self.obj.get_xticklines()[0]
-        except IndexError:
-            pass
-        else:
-            c0 = l0.get_color()
-            xtickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-            tick_options = ""
-            if self.data.strict:
-                tick_options += ", "
-                params = self.obj.get_xaxis().get_tick_params()
-                tick_options += self._get_tick_style_options(params, "x", is_minor=False)
-                label_options = self._get_tick_label_options(params, "x")
-                self.data.current_axis_options.add(f"xticklabel style={{{label_options}}}")
-            self.data.current_axis_options.add(
-                f"xtick style={{color={xtickcolor}{tick_options.strip()}}}"
-            )
-
-        try:
-            l0 = self.obj.get_yticklines()[0]
-        except IndexError:
-            pass
-        else:
-            c0 = l0.get_color()
-            ytickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-            tick_options = ""
-            if self.data.strict:
-                tick_options += ", "
-                params = self.obj.get_yaxis().get_tick_params()
-                tick_options += self._get_tick_style_options(params, "y", is_minor=False)
-                label_options = self._get_tick_label_options(params, "y")
-                self.data.current_axis_options.add(f"yticklabel style={{{label_options}}}")
-            self.data.current_axis_options.add(
-                f"ytick style={{color={ytickcolor}{tick_options.strip()}}}"
-            )
-
+        axes = ["x", "y"]
         if self.is_3d:
-            try:
-                l0 = self.obj.get_zticklines()[0]
-            except IndexError:
-                pass
-            else:
-                c0 = l0.get_color()
-                ztickcolor, _ = _color.mpl_color2xcolor(self.data, c0)
-                tick_options = ""
-                if self.data.strict:
-                    tick_options += ", "
-                    params = self.obj.get_zaxis().get_tick_params()
-                    tick_options += self._get_tick_style_options(params, "z", is_minor=False)
-                    label_options = self._get_tick_label_options(params, "z")
-                    self.data.current_axis_options.add(f"zticklabel style={{{label_options}}}")
-                self.data.current_axis_options.add(
-                    f"ztick style={{color={ztickcolor}{tick_options.strip()}}}"
-                )
+            axes.append("z")
+
+        for axis_name in axes:
+            self._process_single_axis_tick_style(axis_name)
 
         if self.data.strict:
             self._get_minor_tick_style()
@@ -1111,11 +1041,8 @@ def _get_ticks(
 
 def _uses_plain_scalar_tick_format(obj: Axes, x_or_y_or_z: str) -> bool:
     """Return True when ticklabel_format(style='plain') is active on this axis."""
-    axis = None
-    if (x_or_y_or_z == "z"):
-        axis = obj.zaxis
-    else:
-        axis = obj.xaxis if x_or_y_or_z == "x" else obj.yaxis
+    axis = obj.xaxis if x_or_y_or_z == "x" else obj.yaxis if x_or_y_or_z == "y" else obj.zaxis
+
     formatter = axis.get_major_formatter()
     if not isinstance(formatter, ScalarFormatter):
         return False

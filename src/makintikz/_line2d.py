@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from matplotlib.container import ErrorbarContainer
 from matplotlib.dates import num2date
-from mpl_toolkits.mplot3d.art3d import Line3D
 
 from . import _color as mycol
 from . import _files
@@ -20,6 +19,7 @@ from ._util import _common_texification, get_legend_text, has_legend, transform_
 if TYPE_CHECKING:
     from matplotlib.collections import LineCollection
     from matplotlib.lines import Line2D
+    from mpl_toolkits.mplot3d.art3d import Line3D
 
     from ._tikzdata import TikzData
 
@@ -299,19 +299,27 @@ def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: li
     addplot_options.append(f"mark options={{{opts}}}")
 
 
+MIN_EXTERN_LENGTH = 3
+DATE_FMT = "%Y-%m-%d %H:%M"
+
+
 def _table(data: TikzData, obj: Line2D) -> list[str]:
     is_3d = hasattr(obj, "get_data_3d")
+
+    if is_3d:
+        plot_table, opts, n_points = _process_3d_table(data, obj)
+    else:
+        plot_table, opts, n_points = _process_2d_table(data, obj)
+
     ff = data.float_format
     table_row_sep = data.table_row_sep
     opts: list[str] = []
 
     if is_3d:
-        xdata, ydata, zdata = _get_xyz_data(obj) # TODO: verify _get_xyz_data works for 3D data
+        xdata, ydata, zdata = _get_xyz_data(obj)  # TODO: verify _get_xyz_data works for 3D data
 
         has_nans = not (
-            np.all(np.isfinite(xdata))
-            and np.all(np.isfinite(ydata))
-            and np.all(np.isfinite(zdata))
+            np.all(np.isfinite(xdata)) and np.all(np.isfinite(ydata)) and np.all(np.isfinite(zdata))
         )
         if has_nans and "unbounded coords=jump" not in data.current_axis_options:
             data.current_axis_options.add("unbounded coords=jump")
@@ -324,7 +332,7 @@ def _table(data: TikzData, obj: Line2D) -> list[str]:
             f"{x:{ff}} {y:{ff}} {z:{ff}}{table_row_sep}"
             for x, y, z in zip(xdata, ydata, zdata, strict=True)
         ]
-    else: 
+    else:
         xdata, ydata = _get_xy_data(data, obj)
         ydata_mask = _get_ydata_mask(obj)
 
@@ -374,7 +382,8 @@ def _table(data: TikzData, obj: Line2D) -> list[str]:
 
         ff = data.float_format
         plot_table = [
-            f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}" for x, y in zip(xdata, ydata, strict=True)
+            f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}"
+            for x, y in zip(xdata, ydata, strict=True)
         ]
 
     min_extern_length = 3
@@ -404,6 +413,29 @@ def _table(data: TikzData, obj: Line2D) -> list[str]:
 
     return content
 
+
+def _process_3d_table(data: TikzData, obj: Line3D) -> tuple[list[str], list[str], int]:
+    xdata, ydata, zdata = _get_xyz_data(obj)
+
+    has_nans = not (
+        np.all(np.isfinite(xdata))
+        and np.all(np.isfinite(ydata))
+        and np.all(np.isfinite(zdata))
+    )
+    if has_nans:
+        data.current_axis_options.add("unbounded coords=jump")
+
+    ff = data.float_format
+    sep = data.table_row_sep
+    plot_table = [
+        f"{x:{ff}} {y:{ff}} {z:{ff}}{sep}"
+        for x, y, z in zip(xdata, ydata, zdata, strict=True)
+    ]
+    return plot_table, [], len(xdata)
+
+
+def _process_2d_table(data: TikzData, obj: Line2D) -> tuple[list[str], list[str], int]:
+    xdata, ydata = 
 
 def _get_xy_data(data: TikzData, obj: Line2D) -> tuple[np.ndarray, np.ndarray]:
     # get_xydata() always gives float data, no matter what

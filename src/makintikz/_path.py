@@ -296,12 +296,7 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
             return []
         # Transpose (xs, ys, zs) into Nx3 rows of strings
         coords = np.column_stack([xs, ys, zs])
-        dd_strings = np.array(
-            [
-                [f"{val:{data.float_format}}" for val in row]
-                for row in coords
-            ]
-        )
+        dd_strings = np.array([[f"{val:{data.float_format}}" for val in row] for row in coords])
         labels = ["x", "y", "z"]
         is_contour = False
     else:
@@ -311,15 +306,15 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
         if not isinstance(dd, Iterable):
             # No idea what to draw.
             return []
-        dd_strings=np.array(
+        dd_strings = np.array(
             [
                 [f"{val:{data.float_format}}" for val in row]  # type: ignore[str-bytes-safe]
                 for row in dd
                 if isinstance(row, Iterable)
             ]
         )
-        labels=["x", "y"]
-        is_contour=isinstance(dd, Sized) and len(dd) == 1
+        labels = ["x", "y"]
+        is_contour = isinstance(dd, Sized) and len(dd) == 1
 
     if len(dd_strings) == 0:
         return []
@@ -412,7 +407,7 @@ def _draw_pathcollection_scatter_colormap(data: TikzData, pcd: PathCollectionDat
         pcd.table_options.extend(["x=x", "y=y", "z=z", "meta=colordata"])
     else:
         pcd.table_options.extend(["x=x", "y=y", "meta=colordata"])
-    
+
     if pcd.obj.get_cmap():
         mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(pcd.obj.get_cmap(), data)
         pcd.draw_options.append("scatter")

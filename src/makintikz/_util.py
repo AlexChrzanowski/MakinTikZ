@@ -74,15 +74,15 @@ def transform_to_data_coordinates(
             xdata, ydata = transform.transform(points).T
             return xdata, ydata
         return xdata, ydata
-    else:
-        if obj.axes is not None and obj.get_transform() != obj.axes.transData:
-            points = np.array([xdata, ydata, zdata]).T
-            transform = matplotlib.transforms.composite_transform_factory(
-                obj.get_transform(), obj.axes.transData.inverted()
-            )
-            xdata, ydata, zdata = transform.transform(points).T
-            return xdata, ydata, zdata
+    if obj.axes is not None and obj.get_transform() != obj.axes.transData:
+        points = np.array([xdata, ydata, zdata]).T
+        transform = matplotlib.transforms.composite_transform_factory(
+            obj.get_transform(), obj.axes.transData.inverted()
+        )
+        xdata, ydata, zdata = transform.transform(points).T
         return xdata, ydata, zdata
+    return xdata, ydata, zdata
+
 
 _NO_ESCAPE = r"(?<!\\)(?:\\\\)*"
 _split_math = re.compile(_NO_ESCAPE + r"\$").split

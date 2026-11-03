@@ -116,7 +116,7 @@ class TestPlottypes:
 
     def test_plot3d(self) -> None:
         """Test cleanfigure with a 3d plot."""
-        line_difference = 13
+        line_difference = 12
         theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
         z = np.linspace(-2, 2, 100)
         r = z**2 + 1
@@ -144,7 +144,7 @@ class TestPlottypes:
 
     def test_scatter3d(self) -> None:
         """Test cleanfigure with scatter plot."""
-        line_difference = 14
+        line_difference = 13
         theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
         z = np.linspace(-2, 2, 100)
         r = z**2 + 1
