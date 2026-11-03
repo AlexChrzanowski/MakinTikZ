@@ -273,7 +273,7 @@ class MyAxes:
 
             yrotation = self.obj.yaxis.get_label().get_rotation()
             if self.is_3d:
-                self.data.current_axis_options.add(f"ylabel style={"sloped"}")
+                self.data.current_axis_options.add(f"ylabel style={{sloped}}")
             elif yrotation != 90:  # noqa: PLR2004
                 self.data.current_axis_options.add(f"ylabel style={{rotate={yrotation - 90}}}")
 

@@ -1,0 +1,70 @@
+\begin{tikzpicture}
+
+\definecolor{darkgray176}{RGB}{176,176,176}
+\definecolor{darkorange25512714}{RGB}{255,127,14}
+\definecolor{steelblue31119180}{RGB}{31,119,180}
+
+\begin{axis}[
+height=4.8in,
+view={30}{30},
+width=6.4in,
+x grid style={darkgray176},
+xlabel style={sloped},
+xlabel={X Label},
+xmin=28.01302, xmax=29.390995,
+xtick style={color=black},
+y grid style={darkgray176},
+ylabel style={sloped},
+ylabel={Y Label},
+ymin=72.561288, ymax=99.492327,
+ytick style={color=black},
+z grid style={darkgray176},
+zlabel={Z Label},
+zmin=-33.720964, zmax=-10.888664,
+ztick style={color=black}
+]
+\addplot3 [
+  draw=steelblue31119180,
+  fill=steelblue31119180,
+  mark=*,
+  only marks,
+  scatter,
+  scatter/@post marker code/.code={%
+  \endscope
+},
+  scatter/@pre marker code/.code={%
+  \pgfsetlinewidth{\perpointlinewidth pt}%
+  \scope[draw=steelblue31119180, fill=steelblue31119180, line width=1.0pt]%
+  \pgfset{/tikz/mark size=\perpointmarksize pt}%
+},
+  visualization depends on={\thisrow{lwdata} \as\perpointlinewidth},
+  visualization depends on={\thisrow{sizedata} \as\perpointmarksize}
+]
+table{%
+x  y  z  sizedata  lwdata
+29.303306 74.275081 -32.268 2.5231325220201604 1.0
+};
+\addplot3 [
+  draw=darkorange25512714,
+  fill=darkorange25512714,
+  mark=triangle*,
+  only marks,
+  scatter,
+  scatter/@post marker code/.code={%
+  \endscope
+},
+  scatter/@pre marker code/.code={%
+  \pgfsetlinewidth{\perpointlinewidth pt}%
+  \scope[draw=darkorange25512714, fill=darkorange25512714, line width=1.0pt]%
+  \pgfset{/tikz/mark size=\perpointmarksize pt}%
+},
+  visualization depends on={\thisrow{lwdata} \as\perpointlinewidth},
+  visualization depends on={\thisrow{sizedata} \as\perpointmarksize}
+]
+table{%
+x  y  z  sizedata  lwdata
+28.10071 97.778533 -12.341629 2.5231325220201604 1.0
+};
+\end{axis}
+
+\end{tikzpicture}
