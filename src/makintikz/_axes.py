@@ -1109,10 +1109,10 @@ def _get_ticks(
     )
     pgfplots_ticklabels = _get_pgfplots_ticklabels(ticklabels)
 
-    is_polar = "polar" in xy
+    is_polar = "polar" in xyz
     if is_polar:
         ticks = [np.degrees(t) for t in ticks]
-    xy = xy.replace(" polar", "")
+    xyz = xyz.replace(" polar", "")
 
     # PGFPlots does not support custom labels for minor ticks (e.g., "minor xticklabels"
     # is not a valid key), so skip ticklabels for minor ticks.
