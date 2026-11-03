@@ -256,7 +256,7 @@ class MyAxes:
 
             xrotation = self.obj.xaxis.get_label().get_rotation()
             if self.is_3d:
-                self.data.current_axis_options.add(f"xlabel style={"sloped"}")
+                self.data.current_axis_options.add(f"xlabel style={{sloped}}")
             elif xrotation != 0:
                 self.data.current_axis_options.add(f"xlabel style={{rotate={xrotation - 90}}}")
 
