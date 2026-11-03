@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterable, Sequence, Sized
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 from matplotlib.dates import DateConverter, num2date
@@ -284,48 +284,62 @@ def _check_x_is_date(data: TikzData) -> bool:
     return isinstance(converter, DateConverter)
 
 
+class ExtractedCoordinates(NamedTuple):
+    dd_strings: np.ndarray
+    labels: list[str]
+    is_3d: bool
+    is_contour: bool
+
+
+def _extract_coordinates(obj: PathCollection, float_format: str) -> ExtractedCoordinates | None:
+    """Extracts and string-formats coordinates for 2D and 3D path collections."""
+    if hasattr(obj, "_offsets3d"):
+        xs, ys, zs = obj._offsets3d  # noqa: SLF001
+        if len(xs) == 0:
+            return None
+        coords = np.column_stack([xs, ys, zs])
+        dd_strings = np.array([[f"{val:{float_format}}" for val in row] for row in coords])
+        return ExtractedCoordinates(
+            dd_strings=dd_strings,
+            labels=["x", "y", "z"],
+            is_3d=True,
+            is_contour=False,
+        )
+
+    dd = obj.get_offsets()
+    if not isinstance(dd, Iterable):
+        return None
+
+    formatted_rows = [
+        [f"{val:{float_format}}" for val in row]  # type: ignore[str-bytes-safe]
+        for row in dd
+        if isinstance(row, Iterable)
+    ]
+    if not formatted_rows:
+        return None
+
+    is_contour = isinstance(dd, Sized) and len(dd) == 1
+    return ExtractedCoordinates(
+        dd_strings=np.array(formatted_rows),
+        labels=["x", "y"],
+        is_3d=False,
+        is_contour=is_contour,
+    )
+
+
 def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
     """Returns PGFPlots code for a number of patch objects."""
-    content = []
-
-    is_3d = hasattr(obj, "_offsets3d")
-
-    if is_3d:
-        xs, ys, zs = obj._offsets3d  # type: ignore[attr-defined]
-        if len(xs) == 0:
-            return []
-        # Transpose (xs, ys, zs) into Nx3 rows of strings
-        coords = np.column_stack([xs, ys, zs])
-        dd_strings = np.array([[f"{val:{data.float_format}}" for val in row] for row in coords])
-        labels = ["x", "y", "z"]
-        is_contour = False
-    else:
-        # 2D logic
-        # gather data
-        dd = obj.get_offsets()
-        if not isinstance(dd, Iterable):
-            # No idea what to draw.
-            return []
-        dd_strings = np.array(
-            [
-                [f"{val:{data.float_format}}" for val in row]  # type: ignore[str-bytes-safe]
-                for row in dd
-                if isinstance(row, Iterable)
-            ]
-        )
-        labels = ["x", "y"]
-        is_contour = isinstance(dd, Sized) and len(dd) == 1
-
-    if len(dd_strings) == 0:
+    coords = _extract_coordinates(obj, data.float_format)
+    if coords is None or len(coords.dd_strings) == 0:
         return []
 
     path_collection_data = PathCollectionData(
         obj=obj,
-        dd_strings=dd_strings,
+        dd_strings=coords.dd_strings,
         draw_options=["only marks"],
-        labels=labels,
+        labels=coords.labels,
         table_options=[],
-        is_contour=is_contour,
+        is_contour=coords.is_contour,
     )
     line_data = LineData(obj=obj)
 
@@ -344,7 +358,8 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
 
     _draw_pathcollection_drawoptions(data, path_collection_data, line_data)
 
-    plot_cmd = "\\addplot3" if is_3d else "\\addplot"
+    plot_cmd = "\\addplot3" if coords.is_3d else "\\addplot"
+    content: list[str] = []
 
     for path in obj.get_paths():
         _draw_pathcollection_draw_contour(path, data, path_collection_data)

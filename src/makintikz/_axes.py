@@ -236,6 +236,9 @@ class MyAxes:
                 )
 
     def _set_axis_titles(self) -> None:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for this method
+
         xlabel = self.obj.get_xlabel()
         if xlabel:
             xlabel = _common_texification(xlabel)
@@ -267,8 +270,6 @@ class MyAxes:
             if yrotation != 90:  # noqa: PLR2004
                 self.data.current_axis_options.add(f"ylabel style={{rotate={yrotation - 90}}}")
 
-        # TODO: add zlabel handling
-
     def _set_axis_limits(self) -> tuple[list[float], list[float], list[float] | None]:
         ff = self.data.float_format
         xlim = list(self.obj.get_xlim())
@@ -286,7 +287,7 @@ class MyAxes:
 
         zlim = None
         if self.is_3d:
-            zlim = list(self.obj.get_zlim())
+            zlim = list(cast("Axes3D", self.obj).get_zlim())
             zlim0, zlim1 = sorted(zlim)
             self.data.current_axis_options.add(f"zmin={zlim0:{ff}}, zmax={zlim1:{ff}}")
             if zlim != sorted(zlim):
@@ -305,7 +306,7 @@ class MyAxes:
             self.data.current_axis_options.add(
                 f"log basis y={{{_try_f2i(self.obj.yaxis._scale.base)}}}"  # type: ignore[attr-defined]  # noqa: SLF001
             )
-        if self.is_3d and self.obj.get_zscale() == "log":
+        if self.is_3d and cast("Axes3D", self.obj).get_zscale() == "log":
             self.data.current_axis_options.add("zmode=log")
             self.data.current_axis_options.add(
                 f"log basis z={{{_try_f2i(self.obj.zaxis._scale.base)}}}"  # type: ignore[attr-defined]  # noqa: SLF001
@@ -358,9 +359,9 @@ class MyAxes:
         # Infer the missing dimension if exactly one is provided
         if has_width != has_height and aspect_num:
             alpha = aspect_num * (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
-            if has_width:
+            if self.data.axis_width is not None:
                 self.data.axis_height = self._scale_dimension(alpha, self.data.axis_width)
-            else:
+            elif self.data.axis_height is not None:
                 self.data.axis_width = self._scale_dimension(1.0 / alpha, self.data.axis_height)
 
         self._sync_dimension_options()
@@ -377,7 +378,9 @@ class MyAxes:
             self.data.current_axis_options.add(f"height={self.data.axis_height}")
 
     def _set_axis_positions(self) -> None:
-        # TODO: confirm this is proper z handling, fix if not
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: Most likely needs to be changed for 3D.
+        # My guess is that it has to do with which corner the z-axis is placed on the plot.
         if self.is_3d:
             return
 
@@ -405,8 +408,8 @@ class MyAxes:
             )
         except KeyError:
             return (
-                getattr(axis, "_gridOnMajor", False),  # type: ignore[attr-defined]
-                getattr(axis, "_gridOnMinor", False),  # type: ignore[attr-defined]
+                getattr(axis, "_gridOnMajor", False),
+                getattr(axis, "_gridOnMinor", False),
             )
 
     def _process_axis_grid(self, name: str, axis: Axis, gridlines: list[Line2D]) -> None:
@@ -442,12 +445,14 @@ class MyAxes:
         ]
 
         if self.is_3d:
-            axes.append(("z", self.obj.zaxis, self.obj.get_zgridlines()))
+            ax3d = cast("Axes3D", self.obj)
+            axes.append(("z", ax3d.zaxis, ax3d.get_zgridlines()))
 
         for name, axis, lines in axes:
             self._process_axis_grid(name, axis, lines)
 
     def _set_axes_grid(self) -> None:
+        # ruff: noqa: FIX002, TD002, TD003
         # TODO: add z coordinate handling to this method
         # https://github.com/AlexChrzanowski/MakinTikZ/issues/64
         if self.obj.figure is not None:
@@ -665,13 +670,14 @@ class MyAxes:
             )
         )
         if self.is_3d:
+            ax3d = cast("Axes3D", self.obj)
             force_z_ticklabels = _uses_plain_scalar_tick_format(self.obj, "z")
             self.data.current_axis_options.update(
                 _get_ticks(
                     self.data,
                     "z",
-                    self.obj.get_zticks(),
-                    self.obj.get_zticklabels(),
+                    ax3d.get_zticks(),
+                    ax3d.get_zticklabels(),
                     force_label_required=force_z_ticklabels,
                 )
             )
@@ -692,12 +698,13 @@ class MyAxes:
             )
         )
         if self.is_3d:
+            ax3d = cast("Axes3D", self.obj)
             self.data.current_axis_options.update(
                 _get_ticks(
                     self.data,
                     "minor z",
-                    self.obj.get_zticks(minor=True),
-                    self.obj.get_zticklabels(minor=True),
+                    ax3d.get_zticks(minor=True),
+                    ax3d.get_zticklabels(minor=True),
                 )
             )
 
@@ -761,12 +768,13 @@ class MyAxes:
             )
 
         if self.is_3d:
+            ax3d = cast("Axes3D", self.obj)
             try:
-                self.obj.get_zticklines(minor=True)[0]
+                ax3d.get_zticklines(minor=True)[0]
             except IndexError:
                 pass
             else:
-                minor_params = self.obj.get_zaxis().get_tick_params(which="minor")
+                minor_params = ax3d.get_zaxis().get_tick_params(which="minor")
                 minor_tick_options = self._get_tick_style_options(minor_params, "z", is_minor=True)
                 self.data.current_axis_options.add(
                     f"minor z tick style={{{minor_tick_options.strip()}}}"
@@ -783,8 +791,10 @@ class MyAxes:
         tick_options += f"line width={width}pt, "
         return tick_options.removesuffix(", ")
 
-    # TODO: z functionality for _get_tick_label_options
     def _get_tick_label_options(self, params: dict, axis: str) -> str:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for _get_tick_label_options
+
         label_options = ""
         opposite_axis = "x" if "y" in axis else "y"
         anchor = "north" if "x" in axis else "east"
@@ -805,8 +815,10 @@ class MyAxes:
             label_options += f"color={formatted_label_color[0]}, "
         return label_options.removesuffix(", ")
 
-    # TODO: z functionality for _get_tick_direction
     def _get_tick_direction(self) -> None:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for _get_tick_direction
+
         # For new matplotlib versions, we could replace the direction getter by
         # `get_ticks_direction()`, see
         # <https://github.com/matplotlib/matplotlib/pull/5290>.  Unfortunately, _tickdir
@@ -836,8 +848,10 @@ class MyAxes:
                     msg = f"Direction can be 'in', 'out', or 'inout', but is '{direction}'."
                     raise ValueError(msg)
 
-    # TODO: z functionality for _set_tick_rotation
     def _set_tick_rotation(self) -> None:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for _set_tick_rotation
+
         x_tick_rotation_and_horizontal_alignment = (
             self._get_label_rotation_and_horizontal_alignment("x")
         )
@@ -850,8 +864,10 @@ class MyAxes:
         if y_tick_rotation_and_horizontal_alignment:
             self.data.current_axis_options.add(y_tick_rotation_and_horizontal_alignment)
 
-    # TODO: z functionality for _set_tick_positions
     def _set_tick_positions(self) -> None:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for _set_tick_positions
+
         x_tick_position_string, x_tick_position = _get_effective_tick_position(self.obj, "x")
         y_tick_position_string, y_tick_position = _get_effective_tick_position(self.obj, "y")
 
@@ -892,8 +908,10 @@ class MyAxes:
                     self.data.is_in_groupplot_env = True
                     self.data.pgfplots_libs.add("groupplots")
 
-    # TODO: z functionality for _get_label_rotation_and_horizontal_alignment
     def _get_label_rotation_and_horizontal_alignment(self, x_or_y: str) -> str:
+        # ruff: noqa: FIX002, TD002, TD003
+        # TODO: z functionality for this method
+
         label_style = ""
 
         major_tick_labels = (
@@ -951,8 +969,10 @@ class MyAxes:
             self.data.current_axis_options.add(f"view={{{azim}}}{{{elev}}}")
 
 
-# TODO: z functionality for _get_tick_position
 def _get_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
+    # ruff: noqa: FIX002, TD002, TD003
+    # TODO: z functionality for _get_tick_position
+
     major_ticks = obj.xaxis.majorTicks if x_or_y == "x" else obj.yaxis.majorTicks
 
     major_ticks_bottom = [tick.tick1line.get_visible() for tick in major_ticks]
@@ -1041,7 +1061,13 @@ def _get_ticks(
 
 def _uses_plain_scalar_tick_format(obj: Axes, x_or_y_or_z: str) -> bool:
     """Return True when ticklabel_format(style='plain') is active on this axis."""
-    axis = obj.xaxis if x_or_y_or_z == "x" else obj.yaxis if x_or_y_or_z == "y" else obj.zaxis
+    axis = (
+        obj.xaxis
+        if x_or_y_or_z == "x"
+        else obj.yaxis
+        if x_or_y_or_z == "y"
+        else cast("Axes3D", obj).zaxis
+    )
 
     formatter = axis.get_major_formatter()
     if not isinstance(formatter, ScalarFormatter):
@@ -1088,8 +1114,9 @@ def _get_pgfplots_ticklabels(ticklabels: list) -> list[str]:
     return pgfplots_ticklabels
 
 
-# TODO: z functionality for _get_effective_tick_position
 def _get_effective_tick_position(obj: Axes, x_or_y: str) -> tuple[str | None, str | None]:
+    # ruff: noqa: FIX002, TD002, TD003
+    # TODO: z functionality for this method
     """Get tick position, considering shared axes in twinx()/twiny() setups.
 
     When axes are overlaid (twin) and share an axis, use the tick config from

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -18,6 +18,7 @@ from mpl_toolkits.mplot3d import Axes3D, art3d
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
     from matplotlib.figure import FigureBase
+    from mpl_toolkits.mplot3d.art3d import Path3DCollection
 
 
 STEP_DRAW_STYLES = ["steps-pre", "steps-post", "steps-mid"]
@@ -254,7 +255,7 @@ def _clean_collections(
 
     if isinstance(cfd.axes, Axes3D):
         x_data, y_data, z_data = _split_data_3d(data)
-        collection._offsets3d = (x_data, y_data, z_data)  # noqa: SLF001
+        cast("Path3DCollection", collection)._offsets3d = (x_data, y_data, z_data)  # noqa: SLF001
     else:
         collection.set_offsets(data)
 
