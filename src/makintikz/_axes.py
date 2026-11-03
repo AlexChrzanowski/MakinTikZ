@@ -840,6 +840,7 @@ class MyAxes:
                 if self.data.strict:
                     tick_options += ", "
                     params = self.obj.get_zaxis().get_tick_params()
+                    # NOT SUPPORTED FOR 3D PLOTS
                     # Do not get ztick styles - there are no ztick related rcParam keys in Matplotlib
                     self.data.current_axis_options.add(f"zticklabel style={{{label_options}}}")
                 self.data.current_axis_options.add(
@@ -885,6 +886,8 @@ class MyAxes:
                 )
 
     def _get_tick_style_options(self, params: dict, axis: str, *, is_minor: bool) -> str:
+        # NOT SUPPORTED FOR 3D PLOTS
+        # No support for z ticks, as Matplotlib does not have z tick rcParams
         tick_options = ""
         minor_or_major = "major" if is_minor is False else "minor"
         rcparams_key = axis + "tick." + minor_or_major + "."
@@ -895,8 +898,9 @@ class MyAxes:
         tick_options += f"line width={width}pt, "
         return tick_options.removesuffix(", ")
 
-    # TODO: z functionality for _get_tick_label_options
     def _get_tick_label_options(self, params: dict, axis: str) -> str:
+        # NOT SUPPORTED FOR 3D PLOTS
+        # No support for z ticks, as Matplotlib does not have z tick rcParams
         label_options = ""
         opposite_axis = "x" if "y" in axis else "y"
         anchor = "north" if "x" in axis else "east"
@@ -953,7 +957,6 @@ class MyAxes:
                     msg = f"Direction can be 'in', 'out', or 'inout', but is '{direction}'."
                     raise ValueError(msg)
 
-    # TODO: z functionality for _set_tick_rotation
     def _set_tick_rotation(self) -> None:
         x_tick_rotation_and_horizontal_alignment = (
             self._get_label_rotation_and_horizontal_alignment("x")
@@ -967,6 +970,12 @@ class MyAxes:
         if y_tick_rotation_and_horizontal_alignment:
             self.data.current_axis_options.add(y_tick_rotation_and_horizontal_alignment)
 
+        z_tick_rotation_and_horizontal_alignment = (
+            self._get_label_rotation_and_horizontal_alignment("z")
+        )
+        if z_tick_rotation_and_horizontal_alignment:
+            self.data.current_axis_options.add(z_tick_rotation_and_horizontal_alignment)
+
     # TODO: z functionality for _set_tick_positions
     def _set_tick_positions(self) -> None:
         x_tick_position_string, x_tick_position = _get_effective_tick_position(self.obj, "x")
@@ -976,6 +985,8 @@ class MyAxes:
         # use axis x line*=top, which would remove the bottom axis line. Matplotlib
         # keeps the bottom axis line and only moves ticks to top.
         if not self.is_3d and not self.data.strict:
+            # NOT SUPPORTED FOR 3D PLOTS
+            # We want to default to PGFPlot styles
             if x_tick_position == y_tick_position and x_tick_position is not None:
                 self.data.current_axis_options.add(f"tick pos={x_tick_position}")
             else:
