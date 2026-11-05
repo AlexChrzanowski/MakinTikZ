@@ -513,7 +513,7 @@ def _recurse(data: TikzData, obj: Artist) -> list:
                 (Patch, _patch.draw_patch),
                 (Collection, _draw_collection),
                 (Text, _text.draw_text),
-                (QuiverKey, _quiver.draw_arrow)
+                (QuiverKey, _quiver.draw_quiver_key)
             ):
                 if isinstance(child, child_type):
                     content.extend(process_func(data, child), child.get_zorder())  # type: ignore[arg-type]
