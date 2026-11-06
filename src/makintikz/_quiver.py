@@ -20,23 +20,12 @@ class QuiverData:
     obj: QuiverKey
 
 def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:
+    # TODO: draw key in output
     X = getattr(obj, "X", False)
     Y = getattr(obj, "Y", False)
     U = getattr(obj, "U", False)
     angle = getattr(obj, "angle", False)
-    quiver_options = _get_quiver_options(data, obj)
-
-    content = ["\\addplot "]
-    if quiver_options:
-        opts = ", ".join(quiver_options)
-        content.append(f"[{opts}]\n")
-        
     return []
-
-def _get_quiver_options(data: TikzData, obj: QuiverKey) -> list[str]:
-    # TODO: rename to match PGFPlots command
-    quiver_options = []
-    return quiver_options
 
 def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     content = []
@@ -56,7 +45,9 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     primitive_legend = obj.axes.get_legend()
 
     # Get several plot options
-    addplot_options = _get_quiver_options(data, obj)
+    qkey = next((a for a in data.current_mpl_axes.artists if isinstance(a, QuiverKey) and a.Q == obj), None)
+    addplot_options = _get_quiver_options(data, obj, qkey)
+
     # Check if a line is in a legend and forget it if not.
     # Fixes <https://github.com/nschloe/tikzplotlib/issues/167>.
     legend_text = get_legend_text(obj)
@@ -77,11 +68,15 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     return content
 
 def _table(data: TikzData, obj: Quiver) -> list[str]:
-    n = obj.N # number of arrows
     X = obj.X
     Y = obj.Y
     U = obj.U
     V = obj.V
+
+    X = np.array(X)
+    Y = np.array(Y)
+    udata = np.array(U)
+    vdata = np.array(V)
 
     opts = []
     # xformat = data.float_format
@@ -105,7 +100,7 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     ff = data.float_format
     plot_table = [
-        f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}" for x, y, u, v in zip(X, Y, U, V, strict=True)
+        f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}" for x, y, u, v in zip(X, Y, udata, vdata, strict=True)
     ]
 
     min_extern_length = 3
@@ -138,12 +133,12 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     return content
 
-def _get_quiver_options(data: TikzData, obj: Quiver) -> list[str]:
+def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:
     addplot_options = []
     line_width: str | None
 
 
-    addplot_options.append("quiver={u=\\thisrow{u},v=\\thisrow{v}}")
+    addplot_options.append(f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={1 / qkey.U}}}")
     addplot_options.append("-stealth")
 
     # if _is_errorbar_main_line(obj):
