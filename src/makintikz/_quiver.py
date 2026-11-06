@@ -137,8 +137,9 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     addplot_options = []
     line_width: str | None
 
-
-    addplot_options.append(f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={1 / qkey.U}}}")
+    ax = data.current_mpl_axes
+    xmin, xmax = ax.get_xlim()
+    addplot_options.append(f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={(xmax - xmin) / obj.scale}}}")
     addplot_options.append("-stealth")
 
     # if _is_errorbar_main_line(obj):
