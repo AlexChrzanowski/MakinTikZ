@@ -97,7 +97,7 @@ class Flavors(enum.Enum):
 
     def preamble(self, data: TikzData | None = None) -> str:
         if data is None:
-            pgfplotslibs = "groupplots,dateplot"
+            pgfplotslibs = "groupplots,dateplot,polar"
             tikzlibs = "patterns,shapes.arrows"
         else:
             pgfplotslibs = ",".join(data.pgfplots_libs)
