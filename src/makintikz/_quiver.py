@@ -4,6 +4,7 @@ from collections.abc import Iterable, Sized
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from . import _color as mycol
@@ -15,17 +16,19 @@ from ._util import get_legend_text, has_legend
 if TYPE_CHECKING:
     from ._tikzdata import TikzData
 
+
 @dataclass
 class QuiverData:
     obj: QuiverKey
 
+
 def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:
-    # TODO: draw key in output
     X = getattr(obj, "X", False)
     Y = getattr(obj, "Y", False)
     U = getattr(obj, "U", False)
     angle = getattr(obj, "angle", False)
     return []
+
 
 def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     content = []
@@ -45,7 +48,9 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     primitive_legend = obj.axes.get_legend()
 
     # Get several plot options
-    qkey = next((a for a in data.current_mpl_axes.artists if isinstance(a, QuiverKey) and a.Q == obj), None)
+    qkey = next(
+        (a for a in data.current_mpl_axes.artists if isinstance(a, QuiverKey) and a.Q == obj), None
+    )
     addplot_options = _get_quiver_options(data, obj, qkey)
 
     # Check if a line is in a legend and forget it if not.
@@ -62,10 +67,10 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
 
     content += _table(data, obj)
 
+    # get table styles
 
-    # TODO: get table styles
-        
     return content
+
 
 def _table(data: TikzData, obj: Quiver) -> list[str]:
     X = obj.X
@@ -82,9 +87,8 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     # xformat = data.float_format
     col_sep = " "
 
-    # TODO: handle masking
     # ydata_mask = _get_ydata_mask(obj)
-    
+
     if data.table_row_sep != "\n":
         # don't want the \n in the table definition, just in the data (below)
         opts.append("row sep=" + data.table_row_sep.strip())
@@ -100,7 +104,8 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     ff = data.float_format
     plot_table = [
-        f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}" for x, y, u, v in zip(X, Y, udata, vdata, strict=True)
+        f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}"
+        for x, y, u, v in zip(X, Y, udata, vdata, strict=True)
     ]
 
     min_extern_length = 3
@@ -133,25 +138,29 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     return content
 
+
 def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:
     addplot_options = []
     line_width: str | None
 
     ax = data.current_mpl_axes
+    print(obj.width)
     xmin, xmax = ax.get_xlim()
-    addplot_options.append(f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={(xmax - xmin) / obj.scale}}}")
+    arrow_scaling = (xmax - xmin) / obj.scale
+    addplot_options.append(
+        f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={arrow_scaling}}}"
+    )
     addplot_options.append("-stealth")
 
     # if _is_errorbar_main_line(obj):
     #     ff = data.float_format
     #     line_width = f"line width={obj.get_linewidth():{ff}}pt"
     # else:
-    #     line_width = mypath.mpl_linewidth2pgfp_linewidth(data, obj.get_linewidth())
+    # line_width = mypath.mpl_linewidth2pgfp_linewidth(data, line_width)
     # if line_width:
     #     addplot_options.append(line_width)
     line_xcolor = _get_linecolor_quiver(data, obj)
     addplot_options.append(line_xcolor)
-    # TODO: drawstyle
     # drawstyle = _get_drawstyle_quiver(obj)
     # if drawstyle is not None:
     #     addplot_options.append(drawstyle)
@@ -172,7 +181,6 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     # if not isinstance(mpl_marker, str):
     #     raise NotImplementedError
     # marker, extra_mark_options = _mpl_marker2pgfp_marker(data, mpl_marker, is_filled=is_filled)
-    # TODO: handle marker
     # if marker:
     #     _marker(
     #         data,
@@ -192,6 +200,7 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 
     return addplot_options
 
+
 def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
-    color = obj.get_facecolors()[0] # TODO: multiple face colors
+    color = obj.get_facecolors()[0]
     return mycol.mpl_color2xcolor(data, color)[0]
