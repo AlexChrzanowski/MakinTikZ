@@ -193,7 +193,5 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     return addplot_options
 
 def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
-    # color = obj.get_color()
-    # TODO: handle quiver linecolor
-    color = "red"
+    color = obj.get_facecolors()[0] # TODO: multiple face colors
     return mycol.mpl_color2xcolor(data, color)[0]
