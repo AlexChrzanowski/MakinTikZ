@@ -18,13 +18,13 @@ from .helpers import assert_equality
 mpl.use("Agg")
 
 
-def randrange(n: int, vmin: float, vmax: float) -> np.ndarray:
+def randrange(rng: np.random.Generator, n: int, vmin: float, vmax: float) -> np.ndarray:
     """Helper function to make an array of random numbers uniformly distributed."""
-    return (vmax - vmin) * np.random.rand(n) + vmin
+    return rng.uniform(vmin, vmax, n)
 
 
 def plot() -> Figure:
-    np.random.seed(19680801)
+    rng = np.random.default_rng(19680801)
 
     fig = plt.figure()
     ax = cast("Axes3D", fig.add_subplot(projection="3d"))
@@ -32,9 +32,9 @@ def plot() -> Figure:
     n = 100
 
     for m, zlow, zhigh in [("o", -50, -25), ("^", -30, -5)]:
-        xs = randrange(n, 23, 32)
-        ys = randrange(n, 0, 100)
-        zs = randrange(n, zlow, zhigh)
+        xs = randrange(rng, n, 23, 32)
+        ys = randrange(rng, n, 0, 100)
+        zs = randrange(rng, n, zlow, zhigh)
         ax.scatter(xs, ys, zs, marker=m)
 
     ax.set_xlabel("X Label")
