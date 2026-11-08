@@ -1,5 +1,8 @@
 """Test multiple 3D line plots."""
 
+# ruff: noqa: FIX002, TD002, TD003
+# TODO: Update this test as ticks and labels are fixed.
+
 from typing import TYPE_CHECKING, cast
 
 import matplotlib as mpl
