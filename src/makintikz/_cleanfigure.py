@@ -516,6 +516,7 @@ def _prune_outside_box(cfd: CleanFigureData) -> np.ndarray:
     should_plot = data_is_in_box
     if cfd.has_lines:
         segvis = _segment_visible(cfd.visual_data, data_is_in_box, cfd.x_lim, cfd.y_lim)
+        segvis = np.asarray(segvis).reshape(-1)
         should_plot = np.logical_or(
             should_plot, np.concatenate([np.array([False]).reshape((-1,)), segvis])
         )
