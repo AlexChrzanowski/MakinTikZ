@@ -1,8 +1,5 @@
 """Test 3D scatter plot with multiple markers and ranges."""
 
-# ruff: noqa: FIX002, TD002, TD003
-# TODO: Update this test as ticks and labels are fixed.
-
 from typing import TYPE_CHECKING, cast
 
 import matplotlib as mpl
