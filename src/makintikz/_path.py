@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterable, Sequence, Sized
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 from matplotlib.dates import DateConverter, num2date
@@ -284,28 +284,62 @@ def _check_x_is_date(data: TikzData) -> bool:
     return isinstance(converter, DateConverter)
 
 
-def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
-    """Returns PGFPlots code for a number of patch objects."""
-    content = []
-    # gather data
+class ExtractedCoordinates(NamedTuple):
+    dd_strings: np.ndarray
+    labels: list[str]
+    is_3d: bool
+    is_contour: bool
+
+
+def _extract_coordinates(obj: PathCollection, float_format: str) -> ExtractedCoordinates | None:
+    """Extracts and string-formats coordinates for 2D and 3D path collections."""
+    if hasattr(obj, "_offsets3d"):
+        xs, ys, zs = obj._offsets3d  # noqa: SLF001
+        if len(xs) == 0:
+            return None
+        coords = np.column_stack([xs, ys, zs])
+        dd_strings = np.array([[f"{val:{float_format}}" for val in row] for row in coords])
+        return ExtractedCoordinates(
+            dd_strings=dd_strings,
+            labels=["x", "y", "z"],
+            is_3d=True,
+            is_contour=False,
+        )
+
     dd = obj.get_offsets()
     if not isinstance(dd, Iterable):
-        # No idea what to draw.
+        return None
+
+    formatted_rows = [
+        [f"{val:{float_format}}" for val in row]  # type: ignore[str-bytes-safe]
+        for row in dd
+        if isinstance(row, Iterable)
+    ]
+    if not formatted_rows:
+        return None
+
+    is_contour = isinstance(dd, Sized) and len(dd) == 1
+    return ExtractedCoordinates(
+        dd_strings=np.array(formatted_rows),
+        labels=["x", "y"],
+        is_3d=False,
+        is_contour=is_contour,
+    )
+
+
+def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
+    """Returns PGFPlots code for a number of patch objects."""
+    coords = _extract_coordinates(obj, data.float_format)
+    if coords is None or len(coords.dd_strings) == 0:
         return []
 
     path_collection_data = PathCollectionData(
         obj=obj,
-        dd_strings=np.array(
-            [
-                [f"{val:{data.float_format}}" for val in row]  # type: ignore[str-bytes-safe]
-                for row in dd
-                if isinstance(row, Iterable)
-            ]
-        ),
+        dd_strings=coords.dd_strings,
         draw_options=["only marks"],
-        labels=["x", "y"],
+        labels=coords.labels,
         table_options=[],
-        is_contour=isinstance(dd, Sized) and len(dd) == 1,
+        is_contour=coords.is_contour,
     )
     line_data = LineData(obj=obj)
 
@@ -324,6 +358,9 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
 
     _draw_pathcollection_drawoptions(data, path_collection_data, line_data)
 
+    plot_cmd = "\\addplot3" if coords.is_3d else "\\addplot"
+    content: list[str] = []
+
     for path in obj.get_paths():
         _draw_pathcollection_draw_contour(path, data, path_collection_data)
         _draw_pathcollection_scatter_sizes(data, path_collection_data)
@@ -335,7 +372,7 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
         len_row = sum(len(item) for item in draw_options)
         j0, j1, j2 = ("", ", ", "") if len_row < max_row_length else ("\n  ", ",\n  ", "\n")
         do = f" [{j0}{{}}{j2}]".format(j1.join(draw_options)) if draw_options else ""
-        content.append(f"\\addplot{do}\n")
+        content.append(f"{plot_cmd}{do}\n")
 
         if data.externals_search_path is not None:
             esp = data.externals_search_path
@@ -381,7 +418,11 @@ def _draw_pathcollection_scatter_colormap(data: TikzData, pcd: PathCollectionDat
         pcd.dd_strings = np.column_stack([pcd.dd_strings, obj_array])
     pcd.labels.append("colordata")
     pcd.draw_options.append("scatter src=explicit")
-    pcd.table_options.extend(["x=x", "y=y", "meta=colordata"])
+    if hasattr(pcd.obj, "_offsets3d"):
+        pcd.table_options.extend(["x=x", "y=y", "z=z", "meta=colordata"])
+    else:
+        pcd.table_options.extend(["x=x", "y=y", "meta=colordata"])
+
     if pcd.obj.get_cmap():
         mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(pcd.obj.get_cmap(), data)
         pcd.draw_options.append("scatter")

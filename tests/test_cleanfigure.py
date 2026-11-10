@@ -116,7 +116,15 @@ class TestPlottypes:
 
     def test_plot3d(self) -> None:
         """Test cleanfigure with a 3d plot."""
-        line_difference = 13
+        line_difference = 12
+        # This ^ line difference was historically 13 before 3D plots were implemented
+        # This test case predates 3D plot support in MakinTikz and needs to be updated
+        # Updated because the points were pruned based only on the x,y coordinates previously.
+        # This led to (x,y only) data points being included that shouldn't have
+        # (if the z coordinate was out of the plot).
+        # This leads to extra nan lines being inserted as well
+        # (as they should be to represent removed data).
+
         theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
         z = np.linspace(-2, 2, 100)
         r = z**2 + 1
@@ -144,7 +152,15 @@ class TestPlottypes:
 
     def test_scatter3d(self) -> None:
         """Test cleanfigure with scatter plot."""
-        line_difference = 14
+        line_difference = 13
+        # This ^ line difference was historically 14 before 3D plots were implemented
+        # This test case predates 3D plot support in MakinTikz and needs to be updated
+        # Updated because the points were pruned based only on the x,y coordinates previously.
+        # This led to (x,y only) data points being included that shouldn't have
+        # (if the z coordinate was out of the plot).
+        # This leads to extra nan lines being inserted as well
+        # (as they should be to represent removed data).
+
         theta = np.linspace(-4 * np.pi, 4 * np.pi, 100)
         z = np.linspace(-2, 2, 100)
         r = z**2 + 1
