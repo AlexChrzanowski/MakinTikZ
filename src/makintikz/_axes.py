@@ -518,8 +518,20 @@ class MyAxes:
             axcol = self.obj.spines["bottom"].get_edgecolor()
 
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
+
+        linewidth = spine.get_linewidth()
+        default_linewidth = plt.rcParamsDefault["axes.linewidth"]
+
+        style_parts = []
+
         if col != "black":
-            self.data.current_axis_options.add(f"axis line style={{{col}}}")
+            style_parts.append(col)
+
+        if not np.isclose(linewidth, default_linewidth):
+            style_parts.append(f"line width={linewidth:g}pt")
+
+        if style_parts:
+            self.data.current_axis_options.add(f"axis line style={{{','.join(style_parts)}}}")
 
     def _set_background_color(self) -> None:
         bgcolor = self.obj.get_facecolor()
