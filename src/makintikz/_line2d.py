@@ -19,6 +19,7 @@ from ._util import _common_texification, get_legend_text, has_legend, transform_
 if TYPE_CHECKING:
     from matplotlib.collections import LineCollection
     from matplotlib.lines import Line2D
+    from mpl_toolkits.mplot3d.art3d import Line3D
 
     from ._tikzdata import TikzData
 
@@ -54,7 +55,7 @@ class MarkerData:
 
 
 def draw_line2d(data: TikzData, obj: Line2D) -> list[str]:
-    r"""Returns the PGFPlots code for an Line2D environment.
+    r"""Returns the PGFPlots code for a Line2D environment.
 
     If line is of length 0, do nothing.  Otherwise, an empty \addplot table will be
     created, which will be interpreted as an external data source in either the file
@@ -80,8 +81,10 @@ def draw_line2d(data: TikzData, obj: Line2D) -> list[str]:
     if legend_text is None and obj.axes is not None and has_legend(obj.axes):
         addplot_options.append("forget plot")
 
+    is_3d = hasattr(obj, "get_data_3d")
+
     # process options
-    content = ["\\addplot "]
+    content = ["\\addplot3 "] if is_3d else ["\\addplot "]
     if addplot_options:
         opts = ", ".join(addplot_options)
         content.append(f"[{opts}]\n")
@@ -296,63 +299,23 @@ def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: li
     addplot_options.append(f"mark options={{{opts}}}")
 
 
+MIN_EXTERN_LENGTH = 3
+DATE_FMT = "%Y-%m-%d %H:%M"
+
+
 def _table(data: TikzData, obj: Line2D) -> list[str]:
-    xdata, ydata = _get_xy_data(data, obj)
-    ydata_mask = _get_ydata_mask(obj)
+    is_3d = hasattr(obj, "get_data_3d")
 
-    if isinstance(xdata[0], datetime.datetime):
-        xdata = np.array([date.strftime("%Y-%m-%d %H:%M") for date in xdata])
-        xformat = ""
-        col_sep = ","
-        opts = ["header=false", "col sep=comma"]
-        data.current_axis_options.add("date coordinates in=x")
-        # Replace float xmin/xmax by datetime
-        # <https://github.com/matplotlib/matplotlib/issues/13727>.
-        data.current_axis_options = {
-            option for option in data.current_axis_options if not option.startswith("xmin")
-        }
-        if data.current_mpl_axes is None:
-            msg = "Matplotlib axes should be set to get the x-axis limits."
-            raise ValueError(msg)
-        xmin, xmax = data.current_mpl_axes.get_xlim()
-        mindate = num2date(xmin).strftime("%Y-%m-%d %H:%M")
-        maxdate = num2date(xmax).strftime("%Y-%m-%d %H:%M")
-        data.current_axis_options.add(f"xmin={mindate}, xmax={maxdate}")
-
-        # Also remove xtick stuff, as it will result in compilation error in LaTeX
-        data.current_axis_options = {
-            option
-            for option in data.current_axis_options
-            if not option.startswith(("xtick=", "xticklabels="))
-        }
+    if is_3d:
+        plot_table, opts, n_points = _process_3d_table(data, obj)
     else:
-        opts = []
-        xformat = data.float_format
-        col_sep = " "
+        plot_table, opts, n_points = _process_2d_table(data, obj)
 
     if data.table_row_sep != "\n":
-        # don't want the \n in the table definition, just in the data (below)
         opts.append("row sep=" + data.table_row_sep.strip())
 
-    table_row_sep = data.table_row_sep
-    ydata[ydata_mask] = np.nan
-    # matplotlib jumps at masked or nan values, while PGFPlots by default
-    # interpolates. Hence, if we have a masked plot, make sure that PGFPlots jumps
-    # as well.
-    if (
-        np.any(ydata_mask) or ~np.all(np.isfinite(ydata))
-    ) and "unbounded coords=jump" not in data.current_axis_options:
-        data.current_axis_options.add("unbounded coords=jump")
-
-    ff = data.float_format
-    plot_table = [
-        f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}" for x, y in zip(xdata, ydata, strict=True)
-    ]
-
-    min_extern_length = 3
-
     content = []
-    if data.externalize_tables and len(xdata) >= min_extern_length:
+    if data.externalize_tables and n_points >= MIN_EXTERN_LENGTH:
         filepath, rel_filepath = _files.new_filepath(data, "table", ".dat")
         with filepath.open("w") as f:
             # No encoding handling required: plot_table is only ASCII
@@ -375,6 +338,69 @@ def _table(data: TikzData, obj: Line2D) -> list[str]:
         content.append("};\n")
 
     return content
+
+
+def _process_3d_table(data: TikzData, obj: Line3D) -> tuple[list[str], list[str], int]:
+    xdata, ydata, zdata = _get_xyz_data(obj)
+
+    has_nans = not (
+        np.all(np.isfinite(xdata)) and np.all(np.isfinite(ydata)) and np.all(np.isfinite(zdata))
+    )
+    if has_nans:
+        data.current_axis_options.add("unbounded coords=jump")
+
+    ff = data.float_format
+    sep = data.table_row_sep
+    plot_table = [
+        f"{x:{ff}} {y:{ff}} {z:{ff}}{sep}" for x, y, z in zip(xdata, ydata, zdata, strict=True)
+    ]
+    return plot_table, [], len(xdata)
+
+
+def _process_2d_table(data: TikzData, obj: Line2D) -> tuple[list[str], list[str], int]:
+    xdata, ydata = _get_xy_data(data, obj)
+    ydata_mask = _get_ydata_mask(obj)
+
+    ydata[ydata_mask] = np.nan
+
+    if np.any(ydata_mask) or not np.all(np.isfinite(ydata)):
+        data.current_axis_options.add("unbounded coords=jump")
+
+    is_datetime = len(xdata) > 0 and isinstance(xdata[0], datetime.datetime)
+
+    if is_datetime:
+        xdata = np.array([date.strftime(DATE_FMT) for date in xdata])
+        xformat = ""
+        col_sep = ","
+        opts = ["header=false", "col sep=comma"]
+        _configure_datetime_axis(data)
+    else:
+        opts = []
+        xformat = data.float_format
+        col_sep = " "
+
+    ff = data.float_format
+    sep = data.table_row_sep
+    plot_table = [f"{x:{xformat}}{col_sep}{y:{ff}}{sep}" for x, y in zip(xdata, ydata, strict=True)]
+    return plot_table, opts, len(xdata)
+
+
+def _configure_datetime_axis(data: TikzData) -> None:
+    if data.current_mpl_axes is None:
+        msg = "Matplotlib axes should be set to get the x-axis limits."
+        raise ValueError(msg)
+
+    xmin, xmax = data.current_mpl_axes.get_xlim()
+    mindate = num2date(xmin).strftime(DATE_FMT)
+    maxdate = num2date(xmax).strftime(DATE_FMT)
+
+    data.current_axis_options = {
+        opt
+        for opt in data.current_axis_options
+        if not opt.startswith(("xmin", "xtick=", "xticklabels="))
+    }
+    data.current_axis_options.add("date coordinates in=x")
+    data.current_axis_options.add(f"xmin={mindate}, xmax={maxdate}")
 
 
 def _get_xy_data(data: TikzData, obj: Line2D) -> tuple[np.ndarray, np.ndarray]:
@@ -408,7 +434,7 @@ def _get_xy_data(data: TikzData, obj: Line2D) -> tuple[np.ndarray, np.ndarray]:
                     "xticklabels={{{}}}".format(",".join([str(x) for x in xdata_iterable])),
                 ]
             )
-        xdata, ydata = transform_to_data_coordinates(obj, xdata, ydata)
+        xdata, ydata = transform_to_data_coordinates(obj, xdata, ydata)[:2]
 
     # matplotlib allows plotting of data containing `astropy.units`, but they will break
     # the formatted string here. Try to strip the units from the data.
@@ -432,3 +458,17 @@ def _get_ydata_mask(obj: Line2D) -> np.ndarray:
         # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.mask.html
         return np.array([], dtype=bool)
     return ydata_mask
+
+
+def _get_xyz_data(obj: Line3D) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    xdata, ydata, zdata = (np.asarray(a, dtype=float) for a in obj.get_data_3d())
+
+    # Strip Astropy / Pint units if present
+    with contextlib.suppress(AttributeError):
+        xdata = getattr(xdata, "value", xdata)
+    with contextlib.suppress(AttributeError):
+        ydata = getattr(ydata, "value", ydata)
+    with contextlib.suppress(AttributeError):
+        zdata = getattr(zdata, "value", zdata)
+
+    return xdata, ydata, zdata
