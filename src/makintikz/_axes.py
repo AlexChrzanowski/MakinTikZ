@@ -488,8 +488,20 @@ class MyAxes:
         else:
             axcol = self.obj.spines["polar"].get_edgecolor()
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
+
+        linewidth = spine.get_linewidth()
+        default_linewidth = plt.rcParamsDefault["axes.linewidth"]
+
+        style_parts = []
+
         if col != "black":
-            self.data.current_axis_options.add(f"axis line style={{{col}}}")
+            style_parts.append(col)
+
+        if not np.isclose(linewidth, default_linewidth):
+            style_parts.append(f"line width={linewidth:g}pt")
+
+        if style_parts:
+            self.data.current_axis_options.add(f"axis line style={{{','.join(style_parts)}}}")
 
     def _set_background_color(self) -> None:
         bgcolor = self.obj.get_facecolor()
@@ -1245,7 +1257,19 @@ def _handle_listed_color_map(cmap: ListedColormap, data: TikzData) -> tuple[str,
     }
     for mpl_cm_name, pgf_cm in cm_translate.items():
         mpl_cm = plt.get_cmap(mpl_cm_name)
-        if isinstance(mpl_cm, ListedColormap) and cmap.colors == mpl_cm.colors:
+        if isinstance(mpl_cm, ListedColormap):
+            arr_mpl_cm = np.asarray(mpl_cm.colors)
+        arr_cmap = np.asarray(cmap.colors)
+
+        are_arrays_equal = False
+        if (np.shape(arr_cmap)[1]) > np.shape(arr_mpl_cm)[1]:
+            # truncates columns to match the expected rgb column values
+            arr_cmap = arr_cmap[:, :3]
+            are_arrays_equal = np.array_equal(arr_cmap, arr_mpl_cm)
+        elif np.shape(arr_cmap) == np.shape(arr_mpl_cm):
+            are_arrays_equal = mpl_cm == cmap
+
+        if are_arrays_equal:
             is_custom_colormap = False
             return pgf_cm, is_custom_colormap
 
@@ -1259,7 +1283,7 @@ def _handle_listed_color_map(cmap: ListedColormap, data: TikzData) -> tuple[str,
         colors = [
             f"rgb({k}{unit})=({rgb[0]:{ff}},{rgb[1]:{ff}},{rgb[2]:{ff}})"
             for k, rgb in enumerate(cmap.colors)
-            if isinstance(rgb, list)
+            if isinstance(rgb, (list, np.ndarray))
         ]
     elif isinstance(cmap.colors, list):
         reps = int(float(cmap.N) / len(cmap.colors) - 0.5) + 1
