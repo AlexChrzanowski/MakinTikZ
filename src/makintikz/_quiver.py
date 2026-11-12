@@ -143,12 +143,31 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     addplot_options = []
     line_width: str | None
 
+        # TODO: handle line width HERE
+    line_width = 0.8
+
     ax = data.current_mpl_axes
-    print(obj.width)
     xmin, xmax = ax.get_xlim()
     arrow_scaling = (xmax - xmin) / obj.scale
+
+    # TODO: fix hardcoded values
+    head_min_length = 0.25
+    head_min_width = 0.20
+    head_max_length = 1
+    head_max_width = 1
+    scale_arrow_head = (
+        "every arrow/.append style={"
+            f"line width={line_width}pt,"
+            "-{Stealth["
+                f"scale length={{{head_min_length} + {head_max_length - head_min_length} * \\pgfplotspointmetatransformed / 1000}},"
+                f"scale width={{{head_min_width} + {head_max_width - head_min_width} * \\pgfplotspointmetatransformed / 1000}}"
+            "]}}"
+    )
+
+    # quiver options, including arrow and arrow head scaling
+    addplot_options.append("point meta={sqrt((\\thisrow{u})^2 + (\\thisrow{v})^2)}")
     addplot_options.append(
-        f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={arrow_scaling}}}"
+        f"quiver={{u=\\thisrow{{u}},v=\\thisrow{{v}},scale arrows={arrow_scaling},{scale_arrow_head}}}"
     )
     addplot_options.append("-stealth")
 
