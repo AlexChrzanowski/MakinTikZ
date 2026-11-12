@@ -485,8 +485,10 @@ class MyAxes:
         # Assume that the bottom edge color is the color of the entire box.
         if hasattr(self.obj.spines, "bottom"):
             axcol = self.obj.spines["bottom"].get_edgecolor()
+            spine = self.obj.spines["bottom"]
         else:
             axcol = self.obj.spines["polar"].get_edgecolor()
+            spine = self.obj.spines["polar"]
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
 
         linewidth = spine.get_linewidth()
