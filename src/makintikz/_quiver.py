@@ -86,6 +86,15 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     vdata = np.array(V)
 
     opts = []
+
+    ax = data.current_mpl_axes
+    xmin, xmax = ax.get_xlim()
+    arrow_scaling = (xmax - xmin) / obj.scale
+    pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
+    #do the append here
+    opts.append(f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}")
+    opts.append(f"y expr={{\\thisrow{{y}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{v}}}}")
+
     # xformat = data.float_format
     col_sep = " "
 
