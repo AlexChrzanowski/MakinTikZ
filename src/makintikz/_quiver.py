@@ -1,3 +1,4 @@
+from __future__ import annotations
 from matplotlib.quiver import Quiver, QuiverKey
 
 from collections.abc import Iterable, Sized
@@ -13,6 +14,7 @@ from . import _files
 from . import _path as mypath
 from ._markers import _mpl_marker2pgfp_marker
 from ._util import get_legend_text, has_legend
+from ._axes import _mpl_cmap2pgf_cmap
 
 if TYPE_CHECKING:
     from ._tikzdata import TikzData
@@ -85,6 +87,15 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     vdata = np.array(V)
 
     opts = []
+
+    ax = data.current_mpl_axes
+    xmin, xmax = ax.get_xlim()
+    arrow_scaling = (xmax - xmin) / obj.scale
+    pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
+    #do the append here
+    opts.append(f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}")
+    opts.append(f"y expr={{\\thisrow{{y}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{v}}}}")
+
     # xformat = data.float_format
     col_sep = " "
 
@@ -103,11 +114,21 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     # ) and "unbounded coords=jump" not in data.current_axis_options:
     #     data.current_axis_options.add("unbounded coords=jump")
 
+    cdata = obj.get_array()
+    has_cmap = cdata is not None
+
     ff = data.float_format
-    plot_table = [
-        f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}"
-        for x, y, u, v in zip(X, Y, udata, vdata, strict=True)
-    ]
+    if has_cmap:
+        cdata = np.asarray(cdata).ravel()
+        plot_table = [
+            f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{col_sep}{c:{ff}}{table_row_sep}"
+            for x, y, u, v, c in zip(X.ravel(), Y.ravel(), udata.ravel(), vdata.ravel(), cdata, strict=True)
+        ]
+    else:
+        plot_table = [
+            f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}"
+            for x, y, u, v in zip(X.ravel(), Y.ravel(), udata.ravel(), vdata.ravel(), strict=True)
+        ]
 
     min_extern_length = 3
 
@@ -132,7 +153,10 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
         else:
             content.append("table {%\n")
 
-        table_headers = f"x{col_sep}y{col_sep}u{col_sep}v{table_row_sep}"
+        if has_cmap:
+            table_headers = f"x{col_sep}y{col_sep}u{col_sep}v{col_sep}colordata{table_row_sep}"
+        else:
+            table_headers = f"x{col_sep}y{col_sep}u{col_sep}v{table_row_sep}"
         content.extend(table_headers)
         content.extend(plot_table)
         content.append("};\n")
@@ -192,7 +216,12 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     quiver_options = ",\n".join(quiver_options)
 
     # quiver options, including arrow and arrow head scaling
-    addplot_options.append("point meta={sqrt((\\thisrow{u})^2 + (\\thisrow{v})^2)}")
+    has_cmap = obj.get_array() is not None
+    if has_cmap:
+        addplot_options.append("point meta=\\thisrow{colordata}")
+    else:
+        addplot_options.append("point meta={sqrt((\\thisrow{u})^2 + (\\thisrow{v})^2)}")
+    
     addplot_options.append(
         f"quiver={{\n{quiver_options}}}"
     )
@@ -205,8 +234,18 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     # line_width = mypath.mpl_linewidth2pgfp_linewidth(data, line_width)
     # if line_width:
     #     addplot_options.append(line_width)
-    line_xcolor = _get_linecolor_quiver(data, obj)
-    addplot_options.append(line_xcolor)
+    if has_cmap and obj.get_cmap():
+        mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(obj.get_cmap(), data)
+        addplot_options.append("colormap" + ("=" if is_custom_cmap else "/") + mycolormap)
+        if obj.norm is not None:
+            if obj.norm.vmin is not None:
+                addplot_options.append(f"point meta min={obj.norm.vmin:{data.float_format}}")
+            if obj.norm.vmax is not None:
+                addplot_options.append(f"point meta max={obj.norm.vmax:{data.float_format}}")
+        addplot_options.append("quiver/every arrow/.append style={color=mapped color}")
+    else:
+        line_xcolor = _get_linecolor_quiver(data, obj)
+        addplot_options.append(line_xcolor)
     # drawstyle = _get_drawstyle_quiver(obj)
     # if drawstyle is not None:
     #     addplot_options.append(drawstyle)
