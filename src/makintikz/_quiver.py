@@ -1,3 +1,4 @@
+from __future__ import annotations
 from matplotlib.quiver import Quiver, QuiverKey
 
 from collections.abc import Iterable, Sized
