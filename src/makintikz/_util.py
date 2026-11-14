@@ -42,17 +42,18 @@ def get_legend_text(obj: Artist) -> str | None:
         leg_handles = leg.legend_handles  # matplotlib version >= 3.7.0
     except AttributeError:
         leg_handles = leg.legendHandles  # type: ignore[attr-defined]  # matplotlib version < 3.7.0
-    keys = [h.get_label() for h in leg_handles if h is not None]
-    values = [t.get_text() for t in leg.texts]
-
-    label = obj.get_label()
-    d = dict(zip(keys, values, strict=True))
-    if label in d:
-        return d[label]
 
     for handle, text in zip(leg_handles, leg.texts):
         if handle is obj:
             return text.get_text()
+
+    label = obj.get_label()
+    if isinstance(label, str) and label and not label.startswith("_"):
+        keys = [h.get_label() for h in leg_handles if h is not None]
+        values = [t.get_text() for t in leg.texts]
+        d = dict(zip(keys, values))
+        if label in d:
+            return d[label]
 
     # Check actual axes handles/labels (matches Quiver/Collection artists directly)
     ax_handles, ax_labels = obj.axes.get_legend_handles_labels()
@@ -62,16 +63,39 @@ def get_legend_text(obj: Artist) -> str | None:
 
     # Positional fallback when labels are passed directly to ax.legend(["A", "B"])
     # (where obj.get_label() remains Matplotlib's private "_childN")
-    if isinstance(label, str) and label.startswith("_") and leg.texts:
-        candidates = [
+    if isinstance(label, str) and label.startswith("_") and label != "_nolegend_":
+        all_artists = [
             a
             for a in (*obj.axes.lines, *obj.axes.patches, *obj.axes.collections)
-            if a is not leg and not (a.get_label() and not a.get_label().startswith("_"))
+            if a is not leg
         ]
-        if obj in candidates:
-            idx = candidates.index(obj)
-            if idx < len(leg.texts):
-                return leg.texts[idx].get_text()
+        claimed_labels = {
+            a.get_label()
+            for a in all_artists
+            if isinstance(a.get_label(), str) and a.get_label() and not a.get_label().startswith("_")
+        }
+        claimed_handles = set(all_artists)
+
+        unclaimed_texts = [
+            text.get_text()
+            for handle, text in zip(leg_handles, leg.texts)
+            if handle not in claimed_handles
+            and (handle is None or handle.get_label() not in claimed_labels)
+        ]
+
+        if unclaimed_texts:
+            candidates = [
+                a
+                for a in all_artists
+                if a not in leg_handles
+                and isinstance(a.get_label(), str)
+                and a.get_label().startswith("_")
+                and a.get_label() != "_nolegend_"
+            ]
+            if obj in candidates:
+                idx = candidates.index(obj)
+                if idx < len(unclaimed_texts):
+                    return unclaimed_texts[idx]
 
     return None
 

@@ -26,7 +26,7 @@ from typing_extensions import NotRequired, Unpack
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
 
-from . import _axes, _legend, _line2d, _patch, _path, _text, _util, _quiver
+from . import _axes, _legend, _line2d, _patch, _path, _quiver, _text, _util
 from . import _image as img
 from . import _quadmesh as qmsh
 from .__about__ import __version__
