@@ -30,14 +30,6 @@ def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:
     return []
 
 
-def _get_arrow_scaling(ax: plt.Axes, obj: Quiver) -> float:
-    if obj.scale is None and ax.figure is not None:
-        ax.figure.canvas.draw()
-    scale = obj.scale if obj.scale is not None else 1.0
-    xmin, xmax = ax.get_xlim()
-    return (xmax - xmin) / scale
-
-
 def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     content = []
     obj.update_scalarmappable()
@@ -107,10 +99,15 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     opts = []
 
+    # TODO: fix arrow scaling
     ax = data.current_mpl_axes
-    arrow_scaling = _get_arrow_scaling(ax, obj)
-    pivot_factor = 1.0 if obj.pivot == "tip" else 0.5 if obj.pivot == "middle" else 0.0
-    # do the append here
+    xmin, xmax = ax.get_xlim()
+
+    arrow_scaling = get_scale_units_conversion(data, obj, obj.scale_units)
+
+    # arrow_scaling = xlen / obj.scale
+    pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
+    #do the append here
     if pivot_factor != 0.0:
         opts.append(
             f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}"
@@ -186,36 +183,25 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     addplot_options = []
     line_width: str | None
 
-    ax = data.current_mpl_axes
-    xmin, xmax = ax.get_xlim()
-    arrow_scaling = _get_arrow_scaling(ax, obj)
-    units = obj.units
+    scale_units = obj.scale_units
+    arrow_scaling = get_scale_units_conversion(data, obj, scale_units)
+    line_width = obj.width * arrow_scaling * 72
 
-    fig = ax.figure
-    axes_width_in = ax.bbox.width / fig.dpi
+    print(obj.minlength * obj.width)
 
-    match units:
-        case "width":
-            arrow_scaling = _get_arrow_scaling(ax, obj)
-        case _:
-            arrow_scaling = 100
-
-    line_width = obj.width * axes_width_in
-
-    print(obj.span)
-
-    head_min_length = 0.15 * (obj.headlength / 5.0)
-    head_max_length = 1.0 * (obj.headlength / 5.0)
-    head_min_width = 0.25 * (obj.headwidth / 3.0)
-    head_max_width = 1.0 * (obj.headwidth / 3.0)
+    head_min_length = 0.25
+    head_max_length = 1.0
+    head_min_width = 0.15
+    head_max_width = 0.8
+    
     scale_arrow_head = [
         "every arrow/.append style={",
-        f"line width={line_width}pt,",
-        "   -{Stealth[",
-        f"      scale length={{{head_min_length} + {head_max_length - head_min_length} * \\pgfplotspointmetatransformed / 1000}},",
-        f"      scale width={{{head_min_width} + {head_max_width - head_min_width} * \\pgfplotspointmetatransformed / 1000}}",
-        "   ]}",
-        "}",
+            # f"line width={line_width}pt,",
+            "   -{Stealth[",
+                f"      scale length={{{head_min_length} + {head_max_length} * \\pgfplotspointmetatransformed / 1000}},",
+                f"      scale width={{{head_min_width} + {head_max_width} * \\pgfplotspointmetatransformed / 1000}}",
+            "   ]}",
+            "}"
     ]
     scale_arrow_head = "\n".join(scale_arrow_head)
 
@@ -257,3 +243,37 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
     color = obj.get_facecolors()[0]
     return mycol.mpl_color2xcolor(data, color)[0]
+
+
+def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | None):
+    ax = data.current_mpl_axes
+    fig = ax.get_figure(root=True)
+    dpi = fig.dpi
+    bb = ax.bbox
+    dpi = fig.dpi
+
+    fig.canvas.draw()
+    unit = scale_units if obj.scale_units is not None else obj.units
+    xmax, xmin = ax.get_xlim()
+    ymax, ymin = ax.get_ylim()
+
+    xlen = xmax - xmin
+    ylen = ymax - ymin
+
+    match unit:
+        case "width" | None:
+            scale_arrows = xlen / obj.scale
+        case "height":
+            scale_arrows = (ylen / bb.height) * (bb.width / xlen) * (bb.height / obj.scale)
+        case "x" | "xy":
+            scale_arrows = 1.0 / obj.scale
+        case "y":
+            scale_arrows = (1.0 / obj.scale) * (ylen / bb.height) * (bb.width / xlen)
+        case "inches":
+            px_per_u = dpi / obj.scale
+            scale_arrows = px_per_u * (xlen / bb.width)
+        case "dots":
+            px_per_u = 1.0 / obj.scale
+            scale_arrows = px_per_u * (xlen / bb.width)
+
+    return abs(scale_arrows)
