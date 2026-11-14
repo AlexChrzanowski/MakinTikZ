@@ -86,15 +86,10 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
 
 
 def _table(data: TikzData, obj: Quiver) -> list[str]:
-    x = obj.X
-    y = obj.Y
-    u = obj.U
-    v = obj.V
-
-    x = np.array(x)
-    y = np.array(y)
-    udata = np.array(u)
-    vdata = np.array(v)
+    x = np.array(obj.X)
+    y = np.array(obj.Y)
+    udata = np.array(obj.U)
+    vdata = np.array(obj.V)
 
     opts = []
 
