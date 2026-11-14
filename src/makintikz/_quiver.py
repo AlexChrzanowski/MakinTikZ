@@ -296,23 +296,27 @@ def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | N
     fig = ax.get_figure(root=True)
     dpi = fig.dpi
     bb = ax.bbox
-    vl = ax.viewLim
+    dpi = fig.dpi
 
-    transform_xy = ax.transData.transform([(0,1),(1,0)])-ax.transData.transform((0,0))
-    conversion = 0
-    match scale_units:
+    fig.canvas.draw()
+    unit = scale_units if obj.scale_units is not None else obj.units
+
+    match unit:
         case "width" | None:
-            conversion = 6.4 / (ax.bbox.width / dpi * obj.scale)
+            xmax, xmin = ax.get_xlim()
+            scale_arrows = (xmax - xmin) / obj.scale
         case "height":
-            conversion = 4.8 / (ax.bbox.height / dpi * obj.scale)
-        case "dots":
-            conversion = 1 / obj.scale
-        case "inches":
-            conversion = dpi / obj.scale
+            ymax, ymin = ax.get_ylim()
+            scale_arrows = ((ymax - ymin) / bb.height) * (bb.width / (xmax - xmin)) * (bb.height / obj.scale)
         case "x" | "xy":
-            xcoord_len = transform_xy[0][1]
-            conversion = xcoord_len /  obj.scale
+            scale_arrows = 1.0 / obj.scale
         case "y":
-            ycoord_len = transform_xy[1][0]
-            conversion = ycoord_len /  obj.scale
-    return conversion
+            scale_arrows = (1.0 / obj.scale) * ((ymax - ymin) / bb.height) * (bb.width / (xmax - xmin))
+        case "inches":
+            px_per_u = dpi / obj.scale
+            scale_arrows = px_per_u * ((xmax - xmin) / bb.width)
+        case "dots":
+            px_per_u = 1.0 / obj.scale
+            scale_arrows = px_per_u * ((xmax - xmin) / bb.width)
+
+    return scale_arrows
