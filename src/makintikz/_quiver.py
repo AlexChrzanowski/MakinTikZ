@@ -21,12 +21,11 @@ class QuiverData:
     obj: QuiverKey
 
 
-def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:
-    # TODO: suppress unused variable lint errors
-    x = getattr(obj, "x", False)
-    y = getattr(obj, "Y", False)
-    u = getattr(obj, "U", False)
-    angle = getattr(obj, "angle", False)
+def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:  # noqa: ARG001
+    x = getattr(obj, "x", False)  # noqa: F841
+    y = getattr(obj, "Y", False)  # noqa: F841
+    u = getattr(obj, "U", False)  # noqa: F841
+    angle = getattr(obj, "angle", False)  # noqa: F841
     return []
 
 
@@ -171,14 +170,13 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     return content
 
 
-def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:
-    # TODO: suppress qkey not being used
-
+def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:  # noqa: ARG001
     addplot_options = []
 
     scale_units = obj.scale_units
     arrow_scaling = get_scale_units_conversion(data, obj, scale_units)
 
+    # ruff: noqa: FIX002, TD002, TD003
     # TODO: fix arrow scaling, currently using hardcoded limits
     head_min_length = 0.25
     head_max_length = 1.0
@@ -187,10 +185,16 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 
     scale_arrow_head = [
         "every arrow/.append style={",
-        "   -{Stealth[",
-        f"      scale length={{{head_min_length} + {head_max_length} * \\pgfplotspointmetatransformed / 1000}},",
-        f"      scale width={{{head_min_width} + {head_max_width} * \\pgfplotspointmetatransformed / 1000}}",
-        "   ]}",
+        "    -{Stealth[",
+        (
+            f"      scale length={{{head_min_length} + {head_max_length}"
+            " * \\pgfplotspointmetatransformed / 1000},"
+        ),
+        (
+            f"      scale width={{{head_min_width} + {head_max_width}"
+            " * \\pgfplotspointmetatransformed / 1000}"
+        ),
+        "    ]}",
         "}",
     ]
     scale_arrow_head = "\n".join(scale_arrow_head)

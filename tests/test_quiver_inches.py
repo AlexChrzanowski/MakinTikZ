@@ -1,5 +1,6 @@
 """Test basic quiver plot with 'inch' scaling."""
 
+# ruff: noqa: FIX002, TD002, TD003
 # TODO: The expected test file does not include quiver key handling yet.
 
 import matplotlib as mpl
