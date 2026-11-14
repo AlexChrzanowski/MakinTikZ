@@ -88,9 +88,13 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     opts = []
 
+    # TODO: fix arrow scaling
     ax = data.current_mpl_axes
     xmin, xmax = ax.get_xlim()
-    arrow_scaling = (xmax - xmin) / obj.scale
+
+    arrow_scaling = get_scale_units_conversion(data, obj, obj.scale_units)
+
+    # arrow_scaling = (xmax - xmin) / obj.scale
     pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
     #do the append here
     opts.append(f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}")
@@ -168,42 +172,23 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     addplot_options = []
     line_width: str | None
 
-        # TODO: handle line width HERE
+    scale_units = obj.scale_units
+    arrow_scaling = get_scale_units_conversion(data, obj, scale_units)
+    line_width = obj.width * arrow_scaling * 72
 
-    ax = data.current_mpl_axes
-    xmin, xmax = ax.get_xlim()
-    units = obj.units
+    print(obj.minlength * obj.width)
 
-    fig = ax.figure
-    axes_width_in = ax.bbox.width / fig.dpi
-
-    # trans = obj._set_transform()
-    # obj.span = trans.inverted().transform_bbox(obj.axes.bbox).width
-    # if obj.width is None:
-    #     sn = np.clip(math.sqrt(obj.N), 8, 25)
-        # obj.width = 0.06 * obj.span / sn
-
-    match units:
-        case "width":
-            arrow_scaling = (xmax - xmin) / obj.scale
-        case _:
-            arrow_scaling = 100
-
-    line_width = obj.width * axes_width_in
+    head_min_length = 0.25
+    head_max_length = 1.0
+    head_min_width = 0.15
+    head_max_width = 0.8
     
-
-    print(obj.span)
-
-    head_min_length = 0.15 * (obj.headlength / 5.0)
-    head_max_length = 1.0 * (obj.headlength / 5.0)
-    head_min_width = 0.25 * (obj.headwidth / 3.0)
-    head_max_width = 1.0 * (obj.headwidth / 3.0)
     scale_arrow_head = [
         "every arrow/.append style={",
-            f"line width={line_width}pt,",
+            # f"line width={line_width}pt,",
             "   -{Stealth[",
-                f"      scale length={{{head_min_length} + {head_max_length - head_min_length} * \\pgfplotspointmetatransformed / 1000}},",
-                f"      scale width={{{head_min_width} + {head_max_width - head_min_width} * \\pgfplotspointmetatransformed / 1000}}",
+                f"      scale length={{{head_min_length} + {head_max_length} * \\pgfplotspointmetatransformed / 1000}},",
+                f"      scale width={{{head_min_width} + {head_max_width} * \\pgfplotspointmetatransformed / 1000}}",
             "   ]}",
             "}"
     ]
@@ -289,3 +274,30 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
     color = obj.get_facecolors()[0]
     return mycol.mpl_color2xcolor(data, color)[0]
+
+
+def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | None):
+    ax = data.current_mpl_axes
+    fig = ax.get_figure(root=True)
+    dpi = fig.dpi
+    bb = ax.bbox
+    vl = ax.viewLim
+
+    transform_xy = ax.transData.transform([(0,1),(1,0)])-ax.transData.transform((0,0))
+    conversion = 0
+    match scale_units:
+        case "width" | None:
+            conversion = 6.4 / (ax.bbox.width / dpi * obj.scale)
+        case "height":
+            conversion = 4.8 / (ax.bbox.height / dpi * obj.scale)
+        case "dots":
+            conversion = 1 / obj.scale
+        case "inches":
+            conversion = dpi / obj.scale
+        case "x" | "xy":
+            xcoord_len = transform_xy[0][1]
+            conversion = xcoord_len /  obj.scale
+        case "y":
+            ycoord_len = transform_xy[1][0]
+            conversion = ycoord_len /  obj.scale
+    return conversion
