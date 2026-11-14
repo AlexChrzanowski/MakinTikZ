@@ -5,6 +5,7 @@ from collections.abc import Iterable, Sized
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -190,16 +191,36 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     line_width: str | None
 
     # TODO: handle line width HERE
-    line_width = 0.8
+    # line_width = 0.8
 
     ax = data.current_mpl_axes
-    arrow_scaling = _get_arrow_scaling(ax, obj)
+    xmin, xmax = ax.get_xlim()
+    arrow_scaling = (ax, obj)
+    units = obj.units
 
-    # TODO: fix hardcoded values
-    head_min_length = 0.25
-    head_min_width = 0.20
-    head_max_length = 1
-    head_max_width = 1
+    fig = ax.figure
+    axes_width_in = ax.bbox.width / fig.dpi
+
+    # trans = obj._set_transform()
+    # obj.span = trans.inverted().transform_bbox(obj.axes.bbox).width
+    # if obj.width is None:
+    #     sn = np.clip(math.sqrt(obj.N), 8, 25)
+        # obj.width = 0.06 * obj.span / sn
+
+    match units:
+        case "width":
+            arrow_scaling = (xmax - xmin) / obj.scale
+        case _:
+            arrow_scaling = 100
+
+    line_width = obj.width * axes_width_in
+
+    print(obj.span)
+
+    head_min_length = 0.15 * (obj.headlength / 5.0)
+    head_max_length = 1.0 * (obj.headlength / 5.0)
+    head_min_width = 0.25 * (obj.headwidth / 3.0)
+    head_max_width = 1.0 * (obj.headwidth / 3.0)
     scale_arrow_head = [
         "every arrow/.append style={",
             f"line width={line_width}pt,",
