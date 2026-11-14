@@ -1,5 +1,7 @@
 """Test quiver plot with a colormap, colorbar, and 'x' scaling."""
 
+# TODO: The expected test file does not include quiver key handling yet.
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,19 +13,17 @@ mpl.use("Agg")
 
 
 def plot() -> Figure:
-    X, Y = np.meshgrid(np.arange(0, 2 * np.pi, .2), np.arange(0, 2 * np.pi, .2))
-    U = np.cos(X)
-    V = np.sin(Y)
+    x, y = np.meshgrid(np.arange(0, 2 * np.pi, 0.2), np.arange(0, 2 * np.pi, 0.2))
+    u = np.cos(x)
+    v = np.sin(y)
 
     fig, ax3 = plt.subplots()
     ax3.set_title("pivot='tip'; scales with x view")
-    M = np.hypot(U, V)
-    Q = ax3.quiver(X, Y, U, V, M, units='x', pivot='tip', width=0.022,
-                scale=1 / 0.15)
-    qk = ax3.quiverkey(Q, 0.9, 0.9, 1, r'$1 \frac{m}{s}$', labelpos='E',
-                    coordinates='figure')
-    ax3.scatter(X, Y, color='0.5', s=1)
-    fig.colorbar(Q, ax=ax3, label="Magnitude")
+    m = np.hypot(u, v)
+    q = ax3.quiver(x, y, u, v, m, units="x", pivot="tip", width=0.022, scale=1 / 0.15)
+    ax3.quiverkey(q, 0.9, 0.9, 1, r"$1 \frac{m}{s}$", labelpos="E", coordinates="figure")
+    ax3.scatter(x, y, color="0.5", s=1)
+    fig.colorbar(q, ax=ax3, label="Magnitude")
 
     return fig
 

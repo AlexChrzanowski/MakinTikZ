@@ -4,7 +4,6 @@ from collections.abc import Iterable, Sized
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.quiver import Quiver, QuiverKey
 
@@ -23,9 +22,10 @@ class QuiverData:
 
 
 def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:
-    X = getattr(obj, "X", False)
-    Y = getattr(obj, "Y", False)
-    U = getattr(obj, "U", False)
+    # TODO: suppress unused variable lint errors
+    x = getattr(obj, "x", False)
+    y = getattr(obj, "Y", False)
+    u = getattr(obj, "U", False)
     angle = getattr(obj, "angle", False)
     return []
 
@@ -87,27 +87,22 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
 
 
 def _table(data: TikzData, obj: Quiver) -> list[str]:
-    X = obj.X
-    Y = obj.Y
-    U = obj.U
-    V = obj.V
+    x = obj.X
+    y = obj.Y
+    u = obj.U
+    v = obj.V
 
-    X = np.array(X)
-    Y = np.array(Y)
-    udata = np.array(U)
-    vdata = np.array(V)
+    x = np.array(x)
+    y = np.array(y)
+    udata = np.array(u)
+    vdata = np.array(v)
 
     opts = []
 
-    # TODO: fix arrow scaling
-    ax = data.current_mpl_axes
-    xmin, xmax = ax.get_xlim()
-
     arrow_scaling = get_scale_units_conversion(data, obj, obj.scale_units)
 
-    # arrow_scaling = xlen / obj.scale
-    pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
-    #do the append here
+    pivot_factor = 1.0 if obj.pivot == "tip" else 0.5 if obj.pivot == "middle" else 0.0
+    # do the append here
     if pivot_factor != 0.0:
         opts.append(
             f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}"
@@ -116,10 +111,7 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
             f"y expr={{\\thisrow{{y}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{v}}}}"
         )
 
-    # xformat = data.float_format
     col_sep = " "
-
-    # ydata_mask = _get_ydata_mask(obj)
 
     if data.table_row_sep != "\n":
         # don't want the \n in the table definition, just in the data (below)
@@ -136,19 +128,19 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
         plot_table = [
             f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{col_sep}{c:{ff}}{table_row_sep}"
             for x, y, u, v, c in zip(
-                X.ravel(), Y.ravel(), udata.ravel(), vdata.ravel(), cdata, strict=True
+                x.ravel(), y.ravel(), udata.ravel(), vdata.ravel(), cdata, strict=True
             )
         ]
     else:
         plot_table = [
             f"{x:{ff}}{col_sep}{y:{ff}}{col_sep}{u:{ff}}{col_sep}{v:{ff}}{table_row_sep}"
-            for x, y, u, v in zip(X.ravel(), Y.ravel(), udata.ravel(), vdata.ravel(), strict=True)
+            for x, y, u, v in zip(x.ravel(), y.ravel(), udata.ravel(), vdata.ravel(), strict=True)
         ]
 
     min_extern_length = 3
 
     content = []
-    if data.externalize_tables and len(X) >= min_extern_length:
+    if data.externalize_tables and len(x) >= min_extern_length:
         filepath, rel_filepath = _files.new_filepath(data, "table", ".dat")
         with filepath.open("w") as f:
             # No encoding handling required: plot_table is only ASCII
@@ -180,28 +172,26 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
 
 def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:
+    # TODO: suppress qkey not being used
+
     addplot_options = []
-    line_width: str | None
 
     scale_units = obj.scale_units
     arrow_scaling = get_scale_units_conversion(data, obj, scale_units)
-    line_width = obj.width * arrow_scaling * 72
 
-    print(obj.minlength * obj.width)
-
+    # TODO: fix arrow scaling, currently using hardcoded limits
     head_min_length = 0.25
     head_max_length = 1.0
     head_min_width = 0.15
     head_max_width = 0.8
-    
+
     scale_arrow_head = [
         "every arrow/.append style={",
-            # f"line width={line_width}pt,",
-            "   -{Stealth[",
-                f"      scale length={{{head_min_length} + {head_max_length} * \\pgfplotspointmetatransformed / 1000}},",
-                f"      scale width={{{head_min_width} + {head_max_width} * \\pgfplotspointmetatransformed / 1000}}",
-            "   ]}",
-            "}"
+        "   -{Stealth[",
+        f"      scale length={{{head_min_length} + {head_max_length} * \\pgfplotspointmetatransformed / 1000}},",
+        f"      scale width={{{head_min_width} + {head_max_width} * \\pgfplotspointmetatransformed / 1000}}",
+        "   ]}",
+        "}",
     ]
     scale_arrow_head = "\n".join(scale_arrow_head)
 
@@ -245,7 +235,7 @@ def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
     return mycol.mpl_color2xcolor(data, color)[0]
 
 
-def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | None):
+def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | None) -> float:
     ax = data.current_mpl_axes
     fig = ax.get_figure(root=True)
     dpi = fig.dpi

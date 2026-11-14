@@ -2,29 +2,17 @@
 
 \definecolor{darkgray176}{RGB}{176,176,176}
 
-\pgfkeys{/pgf/number format/std=-5:6, /pgf/number format/precision=5}
-
 \begin{axis}[
 height=4.8in,
-minor xtick={},
-minor ytick={},
-scale ticks above exponent=5,
-scale ticks below exponent=-4,
 tick align=outside,
 tick pos=left,
 width=6.4in,
 x grid style={darkgray176},
 xmin=-10.95, xmax=9.95,
-xtick style={color=black, /pgfplots/major tick length=3.5pt, line width=0.8pt},
-xtick={-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10},
-xticklabel shift=3.5pt,
-xticklabel style={inner sep=0pt, yshift=0pt, anchor=north},
+xtick style={color=black},
 y grid style={darkgray176},
 ymin=-10.95, ymax=9.95,
-ytick style={color=black, /pgfplots/major tick length=3.5pt, line width=0.8pt},
-ytick={-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10},
-yticklabel shift=3.5pt,
-yticklabel style={inner sep=0pt, xshift=0pt}
+ytick style={color=black}
 ]
 \addplot [
 point meta={sqrt((\thisrow{u})^2 + (\thisrow{v})^2)},

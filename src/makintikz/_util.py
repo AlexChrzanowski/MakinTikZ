@@ -65,14 +65,14 @@ def get_legend_text(obj: Artist) -> str | None:
     # (where obj.get_label() remains Matplotlib's private "_childN")
     if isinstance(label, str) and label.startswith("_") and label != "_nolegend_":
         all_artists = [
-            a
-            for a in (*obj.axes.lines, *obj.axes.patches, *obj.axes.collections)
-            if a is not leg
+            a for a in (*obj.axes.lines, *obj.axes.patches, *obj.axes.collections) if a is not leg
         ]
         claimed_labels = {
             a.get_label()
             for a in all_artists
-            if isinstance(a.get_label(), str) and a.get_label() and not a.get_label().startswith("_")
+            if isinstance(a.get_label(), str)
+            and a.get_label()
+            and not a.get_label().startswith("_")
         }
         claimed_handles = set(all_artists)
 
