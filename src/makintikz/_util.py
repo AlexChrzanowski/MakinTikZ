@@ -50,6 +50,29 @@ def get_legend_text(obj: Artist) -> str | None:
     if label in d:
         return d[label]
 
+    for handle, text in zip(leg_handles, leg.texts):
+        if handle is obj:
+            return text.get_text()
+
+    # Check actual axes handles/labels (matches Quiver/Collection artists directly)
+    ax_handles, ax_labels = obj.axes.get_legend_handles_labels()
+    for handle, ax_label in zip(ax_handles, ax_labels):
+        if handle is obj:
+            return ax_label
+
+    # Positional fallback when labels are passed directly to ax.legend(["A", "B"])
+    # (where obj.get_label() remains Matplotlib's private "_childN")
+    if isinstance(label, str) and label.startswith("_") and leg.texts:
+        candidates = [
+            a
+            for a in (*obj.axes.lines, *obj.axes.patches, *obj.axes.collections)
+            if a is not leg and not (a.get_label() and not a.get_label().startswith("_"))
+        ]
+        if obj in candidates:
+            idx = candidates.index(obj)
+            if idx < len(leg.texts):
+                return leg.texts[idx].get_text()
+
     return None
 
 

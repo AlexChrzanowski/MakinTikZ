@@ -13,7 +13,7 @@ from . import _color as mycol
 from . import _files
 from . import _path as mypath
 from ._markers import _mpl_marker2pgfp_marker
-from ._util import get_legend_text, has_legend
+from ._util import _common_texification, get_legend_text, has_legend
 from ._axes import _mpl_cmap2pgf_cmap
 
 if TYPE_CHECKING:
@@ -49,6 +49,8 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
         return []
 
     primitive_legend = obj.axes.get_legend()
+    if primitive_legend is not None and obj in primitive_legend.get_children():
+        return []
 
     # Get several plot options
     qkey = next(
@@ -56,10 +58,10 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
     )
     addplot_options = _get_quiver_options(data, obj, qkey)
 
+    legend_text = get_legend_text(obj)
     # Check if a line is in a legend and forget it if not.
     # Fixes <https://github.com/nschloe/tikzplotlib/issues/167>.
-    legend_text = get_legend_text(obj)
-    if legend_text is None and obj.axes is not None and has_legend(obj.axes):
+    if obj.axes is not None and has_legend(obj.axes):
         addplot_options.append("forget plot")
 
     # process options
@@ -69,6 +71,18 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
         content.append(f"[\n{opts}\n]\n")
 
     content += _table(data, obj)
+
+    if legend_text is not None and primitive_legend is not None:
+        legend_opts = ["-stealth"]
+        if obj.get_array() is None:
+            legend_opts.append(_get_linecolor_quiver(data, obj))
+        alpha = obj.get_alpha()
+        if alpha is not None:
+            legend_opts.append(f"opacity={alpha}")
+        content.append(f"\\addlegendimage{{{', '.join(legend_opts)}}}\n")
+        content.append(f"\\addlegendentry{{{_common_texification(legend_text)}}}\n")
+    elif legend_text is not None and primitive_legend is None:
+        content.append(f"\\label{{{_common_texification(legend_text) + '_plot'}}}\n")
 
     # get table styles
 
@@ -97,8 +111,9 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     # arrow_scaling = (xmax - xmin) / obj.scale
     pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
     #do the append here
-    opts.append(f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}")
-    opts.append(f"y expr={{\\thisrow{{y}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{v}}}}")
+    if pivot_factor != 0.0:
+        opts.append(f"x expr={{\\thisrow{{x}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{u}}}}")
+        opts.append(f"y expr={{\\thisrow{{y}} - {pivot_factor} * {arrow_scaling} * \\thisrow{{v}}}}")
 
     # xformat = data.float_format
     col_sep = " "
@@ -210,7 +225,7 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     addplot_options.append(
         f"quiver={{\n{quiver_options}}}"
     )
-    addplot_options.append("-stealth")
+    # addplot_options.append("-stealth")
 
     # if _is_errorbar_main_line(obj):
     #     ff = data.float_format
