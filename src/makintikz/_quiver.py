@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
+from matplotlib.figure import Figure
 from matplotlib.quiver import Quiver, QuiverKey
 
 from . import _color as mycol
@@ -46,6 +47,9 @@ def draw_quiver(data: TikzData, obj: Quiver) -> list[str]:
 
     primitive_legend = obj.axes.get_legend()
     if primitive_legend is not None and obj in primitive_legend.get_children():
+        return []
+
+    if data.current_mpl_axes is None:
         return []
 
     # Get several plot options
@@ -165,7 +169,10 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
     return content
 
 
-def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[str]:  # noqa: ARG001
+def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey | None) -> list[str]:  # noqa: ARG001
+    # qkey argument is currently unused
+    # qkey still needs to be implemented
+
     addplot_options = []
 
     scale_units = obj.scale_units
@@ -178,7 +185,7 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
     head_min_width = 0.15
     head_max_width = 0.8
 
-    scale_arrow_head = [
+    scale_arrow_head_lines = [
         "every arrow/.append style={",
         "    -{Stealth[",
         (
@@ -192,13 +199,14 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
         "    ]}",
         "}",
     ]
-    scale_arrow_head = "\n".join(scale_arrow_head)
+    scale_arrow_head = "\n".join(scale_arrow_head_lines)
 
-    quiver_options = []
-    quiver_options.append("u=\\thisrow{u},v=\\thisrow{v}")
-    quiver_options.append(f"scale arrows={arrow_scaling}")
-    quiver_options.append(scale_arrow_head)
-    quiver_options = ",\n".join(quiver_options)
+    quiver_options_list = [
+        "u=\\thisrow{u},v=\\thisrow{v}",
+        f"scale arrows={arrow_scaling}",
+        scale_arrow_head,
+    ]
+    quiver_options = ",\n".join(quiver_options_list)
 
     # quiver options, including arrow and arrow head scaling
     has_cmap = obj.get_array() is not None
@@ -230,16 +238,29 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 
 
 def _get_linecolor_quiver(data: TikzData, obj: Quiver) -> str:
-    color = obj.get_facecolors()[0]
+    color = obj.get_facecolor()[0]
+    if isinstance(color, float):
+        color = (color, color, color)
     return mycol.mpl_color2xcolor(data, color)[0]
 
 
 def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | None) -> float:
     ax = data.current_mpl_axes
-    fig = ax.get_figure(root=True)
+    if ax is None:
+        return 1.0
+
+    fig = ax.get_figure()
+    while (
+        fig is not None
+        and (parent := getattr(fig, "figure", None)) is not None
+        and parent is not fig
+    ):
+        fig = parent
+    if not isinstance(fig, Figure):
+        return 1.0
+
     dpi = fig.dpi
     bb = ax.bbox
-    dpi = fig.dpi
 
     fig.canvas.draw()
     unit = scale_units if obj.scale_units is not None else obj.units
@@ -248,21 +269,22 @@ def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | N
 
     xlen = xmax - xmin
     ylen = ymax - ymin
+    scale = obj.scale if obj.scale is not None else 1.0
 
     match unit:
         case "width" | None:
-            scale_arrows = xlen / obj.scale
+            scale_arrows = xlen / scale
         case "height":
-            scale_arrows = (ylen / bb.height) * (bb.width / xlen) * (bb.height / obj.scale)
+            scale_arrows = (ylen / bb.height) * (bb.width / xlen) * (bb.height / scale)
         case "x" | "xy":
-            scale_arrows = 1.0 / obj.scale
+            scale_arrows = 1.0 / scale
         case "y":
-            scale_arrows = (1.0 / obj.scale) * (ylen / bb.height) * (bb.width / xlen)
+            scale_arrows = (1.0 / scale) * (ylen / bb.height) * (bb.width / xlen)
         case "inches":
-            px_per_u = dpi / obj.scale
+            px_per_u = dpi / scale
             scale_arrows = px_per_u * (xlen / bb.width)
         case "dots":
-            px_per_u = 1.0 / obj.scale
+            px_per_u = 1.0 / scale
             scale_arrows = px_per_u * (xlen / bb.width)
 
     return abs(scale_arrows)

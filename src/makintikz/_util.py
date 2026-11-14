@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 import matplotlib.transforms
 import numpy as np
+from matplotlib.axes import Axes
 
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
-    from matplotlib.axes import Axes
     from matplotlib.legend import Legend
     from matplotlib.lines import Line2D
     from mpl_toolkits.mplot3d import Axes3D
@@ -45,6 +45,7 @@ def _get_legend_handles(leg: Legend) -> list[Artist | None]:
 
 def _match_direct_or_labeled_handle(
     obj: Artist,
+    axes: Axes,
     leg: Legend,
     leg_handles: list[Artist | None],
 ) -> str | None:
@@ -64,7 +65,7 @@ def _match_direct_or_labeled_handle(
             return label_map[label]
 
     # Check actual axes handles/labels (matches Quiver/Collection artists directly)
-    ax_handles, ax_labels = obj.axes.get_legend_handles_labels()
+    ax_handles, ax_labels = axes.get_legend_handles_labels()
     for handle, ax_label in zip(ax_handles, ax_labels, strict=True):
         if handle is obj:
             return ax_label
@@ -74,6 +75,7 @@ def _match_direct_or_labeled_handle(
 
 def _match_positional_legend_text(
     obj: Artist,
+    axes: Axes,
     leg: Legend,
     leg_handles: list[Artist | None],
 ) -> str | None:
@@ -82,13 +84,11 @@ def _match_positional_legend_text(
     if not (isinstance(label, str) and label.startswith("_") and label != "_nolegend_"):
         return None
 
-    all_artists = [
-        a for a in (*obj.axes.lines, *obj.axes.patches, *obj.axes.collections) if a is not leg
-    ]
+    all_artists = [a for a in (*axes.lines, *axes.patches, *axes.collections) if a is not leg]
     claimed_labels = {
         a.get_label()
         for a in all_artists
-        if isinstance(a.get_label(), str) and a.get_label() and not a.get_label().startswith("_")
+        if isinstance(lbl := a.get_label(), str) and lbl and not lbl.startswith("_")
     }
     claimed_handles = set(all_artists)
 
@@ -105,9 +105,9 @@ def _match_positional_legend_text(
         a
         for a in all_artists
         if a not in leg_handles
-        and isinstance(a.get_label(), str)
-        and a.get_label().startswith("_")
-        and a.get_label() != "_nolegend_"
+        and isinstance(lbl := a.get_label(), str)
+        and lbl.startswith("_")
+        and lbl != "_nolegend_"
     ]
     if obj in candidates:
         idx = candidates.index(obj)
@@ -119,20 +119,21 @@ def _match_positional_legend_text(
 
 def get_legend_text(obj: Artist) -> str | None:
     """Check if object is in legend."""
-    if obj.axes is None:
+    axes = obj.axes
+    if not isinstance(axes, Axes):
         return None
 
-    leg = _find_legend(obj.axes)
+    leg = _find_legend(axes)
     if leg is None:
         return None
 
     leg_handles = _get_legend_handles(leg)
 
-    direct_match = _match_direct_or_labeled_handle(obj, leg, leg_handles)
+    direct_match = _match_direct_or_labeled_handle(obj, axes, leg, leg_handles)
     if direct_match is not None:
         return direct_match
 
-    return _match_positional_legend_text(obj, leg, leg_handles)
+    return _match_positional_legend_text(obj, axes, leg, leg_handles)
 
 
 def transform_to_data_coordinates(
