@@ -195,7 +195,7 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 
     ax = data.current_mpl_axes
     xmin, xmax = ax.get_xlim()
-    arrow_scaling = (ax, obj)
+    arrow_scaling = _get_arrow_scaling(ax, obj)
     units = obj.units
 
     fig = ax.figure
@@ -209,7 +209,7 @@ def _get_quiver_options(data: TikzData, obj: Quiver, qkey: QuiverKey) -> list[st
 
     match units:
         case "width":
-            arrow_scaling = (xmax - xmin) / obj.scale
+            arrow_scaling = _get_arrow_scaling(ax, obj)
         case _:
             arrow_scaling = 100
 
