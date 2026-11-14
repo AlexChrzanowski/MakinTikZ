@@ -108,7 +108,7 @@ def _table(data: TikzData, obj: Quiver) -> list[str]:
 
     arrow_scaling = get_scale_units_conversion(data, obj, obj.scale_units)
 
-    # arrow_scaling = (xmax - xmin) / obj.scale
+    # arrow_scaling = xlen / obj.scale
     pivot_factor = 1.0 if obj.pivot == 'tip' else 0.5 if obj.pivot == 'middle' else 0.0
     #do the append here
     if pivot_factor != 0.0:
@@ -300,23 +300,26 @@ def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | N
 
     fig.canvas.draw()
     unit = scale_units if obj.scale_units is not None else obj.units
+    xmax, xmin = ax.get_xlim()
+    ymax, ymin = ax.get_ylim()
+
+    xlen = xmax - xmin
+    ylen = ymax - ymin
 
     match unit:
         case "width" | None:
-            xmax, xmin = ax.get_xlim()
-            scale_arrows = (xmax - xmin) / obj.scale
+            scale_arrows = xlen / obj.scale
         case "height":
-            ymax, ymin = ax.get_ylim()
-            scale_arrows = ((ymax - ymin) / bb.height) * (bb.width / (xmax - xmin)) * (bb.height / obj.scale)
+            scale_arrows = (ylen / bb.height) * (bb.width / xlen) * (bb.height / obj.scale)
         case "x" | "xy":
             scale_arrows = 1.0 / obj.scale
         case "y":
-            scale_arrows = (1.0 / obj.scale) * ((ymax - ymin) / bb.height) * (bb.width / (xmax - xmin))
+            scale_arrows = (1.0 / obj.scale) * (ylen / bb.height) * (bb.width / xlen)
         case "inches":
             px_per_u = dpi / obj.scale
-            scale_arrows = px_per_u * ((xmax - xmin) / bb.width)
+            scale_arrows = px_per_u * (xlen / bb.width)
         case "dots":
             px_per_u = 1.0 / obj.scale
-            scale_arrows = px_per_u * ((xmax - xmin) / bb.width)
+            scale_arrows = px_per_u * (xlen / bb.width)
 
-    return scale_arrows
+    return abs(scale_arrows)
