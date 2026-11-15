@@ -1,0 +1,40 @@
+\begin{tikzpicture}
+
+\definecolor{darkgray176}{RGB}{176,176,176}
+\definecolor{steelblue31119180}{RGB}{31,119,180}
+
+\pgfkeys{/pgf/number format/std=-5:6, /pgf/number format/precision=5}
+
+\begin{axis}[
+height=4.8in,
+minor xtick={},
+minor ytick={},
+scale ticks above exponent=5,
+scale ticks below exponent=-4,
+tick align=outside,
+tick pos=left,
+width=6.4in,
+x grid style={darkgray176},
+xmin=-1.5e-06, xmax=3.15e-05,
+xtick style={color=black, /pgfplots/major tick length=3.5pt, line width=0.8pt},
+xtick={-5e-06,0,5e-06,1e-05,1.5e-05,2e-05,2.5e-05,3e-05,3.5e-05},
+xticklabel shift=3.5pt,
+xticklabel style={inner sep=0pt, yshift=0pt, anchor=north},
+xticklabels={\ensuremath{-}0.5,0.0,0.5,1.0,1.5,2.0,2.5,3.0,3.5},
+y grid style={darkgray176},
+ymin=0.85, ymax=4.15,
+ytick style={color=black, /pgfplots/major tick length=3.5pt, line width=0.8pt},
+ytick={0.5,1,1.5,2,2.5,3,3.5,4,4.5},
+yticklabel shift=3.5pt,
+yticklabel style={inner sep=0pt, xshift=0pt}
+]
+\addplot [semithick, steelblue31119180]
+table {%
+0 1
+1e-05 4
+2e-05 2
+3e-05 3
+};
+\end{axis}
+
+\end{tikzpicture}
