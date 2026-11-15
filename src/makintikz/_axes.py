@@ -507,7 +507,7 @@ class MyAxes:
 
     def _set_axis_line_styles(self) -> None:
         default_linewidth = plt.rcParams.get("axes.linewidth", 0.8)
-        
+
         if self.is_3d:
             # Axes3D stores boundary lines on the individual 3D axis objects
             line = getattr(self.obj.xaxis, "line", None)
@@ -526,7 +526,7 @@ class MyAxes:
             else:
                 axcol = plt.rcParams.get("axes.edgecolor", "black")
                 linewidth = default_linewidth
-            
+
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
 
         style_parts = []
