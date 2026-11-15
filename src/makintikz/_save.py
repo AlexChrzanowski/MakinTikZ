@@ -16,6 +16,7 @@ from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.patches import Patch
 from matplotlib.spines import Spine
 from matplotlib.text import Text
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 from . import _axes, _legend, _line2d, _patch, _path, _text, _util
 from . import _image as img
 from . import _quadmesh as qmsh
+from . import _mesh3d
 from .__about__ import __version__
 from ._tikzdata import Flavors, TikzData
 from ._util import _common_texification
@@ -418,6 +420,8 @@ class _ContentManager:
 
 
 def _draw_collection(data: TikzData, child: Collection) -> list[str]:
+    if isinstance(child, Line3DCollection):
+        return _mesh3d.draw_mesh3d(data, child)
     if isinstance(child, PathCollection):
         return _path.draw_pathcollection(data, child)
     if isinstance(child, LineCollection):
