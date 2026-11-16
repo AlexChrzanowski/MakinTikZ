@@ -177,8 +177,8 @@ to install.
     \usepackage[utf8]{inputenc}
     \usepackage{pgfplots}
     \DeclareUnicodeCharacter{2212}{−}
-    \usepgfplotslibrary{groupplots,dateplot}
-    \usetikzlibrary{patterns,shapes.arrows}
+    \usepgfplotslibrary{groupplots,dateplot,polar}
+    \usetikzlibrary{patterns,shapes.arrows,arrows.meta}
     \pgfplotsset{compat=newest}
     ```
 
@@ -188,8 +188,8 @@ to install.
     \setupcolors[state=start]
     \usemodule[tikz]
     \usemodule[pgfplots]
-    \usepgfplotslibrary[groupplots,dateplot]
-    \usetikzlibrary[patterns,shapes.arrows]
+    \usepgfplotslibrary[groupplots,dateplot,polar]
+    \usetikzlibrary[patterns,shapes.arrows,arrows.meta]
     \pgfplotsset{compat=newest}
     \unexpanded\def\startgroupplot{\groupplot}
     \unexpanded\def\stopgroupplot{\endgroupplot}
