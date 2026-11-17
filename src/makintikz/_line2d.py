@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from matplotlib.container import ErrorbarContainer
 from matplotlib.dates import num2date
+from matplotlib.projections import PolarAxes
 
 from . import _color as mycol
 from . import _files
@@ -81,6 +82,11 @@ def draw_line2d(data: TikzData, obj: Line2D) -> list[str]:
     if legend_text is None and obj.axes is not None and has_legend(obj.axes):
         addplot_options.append("forget plot")
 
+    # If the axes is Polar, then interpret the data points as radians
+    # The matplotlib object stores the data as radians, but PGFPlots by default
+    # prefers degrees.
+    if isinstance(obj.axes, PolarAxes):
+        addplot_options.append("data cs=polarrad")
     is_3d = hasattr(obj, "get_data_3d")
 
     # process options
