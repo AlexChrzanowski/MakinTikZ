@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib.axes import Subplot
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
+from matplotlib.projections.polar import PolarAxes
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -137,6 +138,9 @@ class MyAxes:
         self.side_title_content: list[str] = []
         self.is_3d = isinstance(obj, Axes3D)
 
+        # must be instantiated before _setup_standable_colorbar()
+        self.is_polar = False
+
         # Are we dealing with an axis that hosts a colorbar? Skip then, those are
         # treated implicitily by the associated axis. Exception: standalone colorbar
         # (figure has only this axes) must be processed.
@@ -158,6 +162,9 @@ class MyAxes:
 
         if isinstance(obj, AxesGrid):
             self._set_axes_grid()
+
+        if isinstance(obj, PolarAxes):
+            self._polar()
 
         data.current_axis_options = set()  # Reset axis options
 
@@ -292,8 +299,16 @@ class MyAxes:
         ylim = list(self.obj.get_ylim())
         ylim0, ylim1 = sorted(ylim)
         # Sort the limits so make sure that the smaller of the two is actually *min.
+        if hasattr(self, "is_polar") and self.is_polar:
+            xlim0 = np.degrees(xlim0)
+            xlim1 = np.degrees(xlim1)
+
         self.data.current_axis_options.add(f"xmin={xlim0:{ff}}, xmax={xlim1:{ff}}")
-        self.data.current_axis_options.add(f"ymin={ylim0:{ff}}, ymax={ylim1:{ff}}")
+        if not self.is_polar:
+            # If the plot is polar, allow PGFPlots to manage ymax, since polar plots
+            # require additional margin in the radius to display tick marks that do not
+            # collide with the theta axis.
+            self.data.current_axis_options.add(f"ymin={ylim0:{ff}}, ymax={ylim1:{ff}}")
 
         # When the axis is inverted add additional option
         if xlim != sorted(xlim):
@@ -505,6 +520,10 @@ class MyAxes:
             self.data.is_in_groupplot_env = True
             self.data.pgfplots_libs.add("groupplots")
 
+    def _polar(self) -> None:
+        self.is_polar = True
+        self.data.pgfplots_libs.add("polaraxis")
+
     def _set_axis_line_styles(self) -> None:
         default_linewidth = plt.rcParams.get("axes.linewidth", 0.8)
 
@@ -519,10 +538,14 @@ class MyAxes:
                 linewidth = default_linewidth
         else:
             # Assume that the bottom edge color is the color of the entire box.
-            bottom_spine = self.obj.spines.get("bottom")
-            if bottom_spine is not None:
-                axcol = bottom_spine.get_edgecolor()
-                linewidth = bottom_spine.get_linewidth()
+            if hasattr(self.obj.spines, "bottom"):
+                spine = self.obj.spines["bottom"]
+            else:
+                spine = self.obj.spines["polar"]
+
+            if spine is not None:
+                axcol = spine.get_edgecolor()
+                linewidth = spine.get_linewidth()
             else:
                 axcol = plt.rcParams.get("axes.edgecolor", "black")
                 linewidth = default_linewidth
@@ -645,6 +668,8 @@ class MyAxes:
     def _content_end(self) -> None:
         if self.is_subplot:
             self.content.append("\n\\nextgroupplot")
+        elif self.is_polar:
+            self.content.append(self.data.flavor.start("polaraxis"))
         else:
             self.content.append(self.data.flavor.start("axis"))
 
@@ -665,6 +690,8 @@ class MyAxes:
 
     def get_end_code(self) -> str:
         if not self.is_subplot:
+            if self.is_polar:
+                return self.data.flavor.end("polaraxis") + "\n\n"
             return self.data.flavor.end("axis") + "\n\n"
 
         if self.is_subplot and self.nsubplots == self.subplot_index:
@@ -686,7 +713,7 @@ class MyAxes:
         self.data.current_axis_options.update(
             _get_ticks(
                 self.data,
-                "x",
+                "x" + (" polar" if self.is_polar else ""),
                 self.obj.get_xticks(),
                 self.obj.get_xticklabels(),
                 force_label_required=force_x_ticklabels,
@@ -695,7 +722,7 @@ class MyAxes:
         self.data.current_axis_options.update(
             _get_ticks(
                 self.data,
-                "y",
+                "y" + (" polar" if self.is_polar else ""),
                 self.obj.get_yticks(),
                 self.obj.get_yticklabels(),
                 force_label_required=force_y_ticklabels,
@@ -716,7 +743,7 @@ class MyAxes:
         self.data.current_axis_options.update(
             _get_ticks(
                 self.data,
-                "minor x",
+                "minor x" + (" polar" if self.is_polar else ""),
                 self.obj.get_xticks(minor=True),
                 self.obj.get_xticklabels(minor=True),
             )
@@ -724,7 +751,7 @@ class MyAxes:
         self.data.current_axis_options.update(
             _get_ticks(
                 self.data,
-                "minor y",
+                "minor y" + (" polar" if self.is_polar else ""),
                 self.obj.get_yticks(minor=True),
                 self.obj.get_yticklabels(minor=True),
             )
@@ -851,7 +878,12 @@ class MyAxes:
 
         # Shifts label options to account for tick length
         # removes initial offset
-        label_options += f"inner sep=0pt, anchor={anchor}, {opposite_axis}shift=0pt, "
+        label_options += f"inner sep=0pt, {opposite_axis}shift=0pt, "
+        if not self.is_polar and "y" not in axis:
+            # Allow PGFPlots to handle polar plot tick label position, to avoid
+            # colliding tick labels with the theta axis
+            label_options += f"anchor={anchor}"
+
         self.data.current_axis_options.add(f"{opposite_axis}ticklabel shift={length}pt")
 
         # Updates label color
@@ -1025,7 +1057,11 @@ class MyAxes:
             return None
 
         # Suppress default anchors for x=center and y=east
-        if (x_or_y == "x" and anchor == "center") or (x_or_y == "y" and anchor == "east"):
+        if (
+            (x_or_y == "x" and anchor == "center")
+            or (x_or_y == "y" and anchor == "east")
+            or (self.is_polar and x_or_y == "y")
+        ):
             return None
 
         return f"anchor={anchor}"
@@ -1117,6 +1153,11 @@ def _get_ticks(
         force_label_required or _is_label_required(ticks, ticklabels)
     )
     pgfplots_ticklabels = _get_pgfplots_ticklabels(ticklabels)
+
+    is_polar = "polar" in xyz
+    if is_polar:
+        ticks = [np.degrees(t) for t in ticks]
+    xyz = xyz.replace(" polar", "")
 
     # PGFPlots does not support custom labels for minor ticks (e.g., "minor xticklabels"
     # is not a valid key), so skip ticklabels for minor ticks.
