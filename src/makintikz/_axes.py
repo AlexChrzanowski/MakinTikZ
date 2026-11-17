@@ -520,6 +520,10 @@ class MyAxes:
             self.data.is_in_groupplot_env = True
             self.data.pgfplots_libs.add("groupplots")
 
+    def _polar(self) -> None:
+        self.is_polar = True
+        self.data.pgfplots_libs.add("polaraxis")
+
     def _set_axis_line_styles(self) -> None:
         default_linewidth = plt.rcParams.get("axes.linewidth", 0.8)
 
@@ -538,7 +542,7 @@ class MyAxes:
                 spine = self.obj.spines["bottom"]
             else:
                 spine = self.obj.spines["polar"]
-       
+
             if spine is not None:
                 axcol = spine.get_edgecolor()
                 linewidth = spine.get_linewidth()
@@ -1053,7 +1057,11 @@ class MyAxes:
             return None
 
         # Suppress default anchors for x=center and y=east
-        if (x_or_y == "x" and anchor == "center") or (x_or_y == "y" and anchor == "east") or (self.is_polar and x_or_y == "y"):
+        if (
+            (x_or_y == "x" and anchor == "center")
+            or (x_or_y == "y" and anchor == "east")
+            or (self.is_polar and x_or_y == "y")
+        ):
             return None
 
         return f"anchor={anchor}"
@@ -1146,10 +1154,10 @@ def _get_ticks(
     )
     pgfplots_ticklabels = _get_pgfplots_ticklabels(ticklabels)
 
-    is_polar = "polar" in xy
+    is_polar = "polar" in xyz
     if is_polar:
         ticks = [np.degrees(t) for t in ticks]
-    xy = xy.replace(" polar", "")
+    xyz = xyz.replace(" polar", "")
 
     # PGFPlots does not support custom labels for minor ticks (e.g., "minor xticklabels"
     # is not a valid key), so skip ticklabels for minor ticks.
