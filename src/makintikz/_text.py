@@ -354,9 +354,6 @@ def _bbox_style(
 ) -> None:
     if isinstance(bbox_style, BoxStyle.Round):
         properties.append("rounded corners")
-    elif isinstance(bbox_style, BoxStyle.RArrow):
-        data.tikz_libs.add("shapes.arrows")
-        properties.append("single arrow")
     elif isinstance(bbox_style, BoxStyle.LArrow):
         data.tikz_libs.add("shapes.arrows")
         properties.append("single arrow")
@@ -364,6 +361,9 @@ def _bbox_style(
     elif isinstance(bbox_style, BoxStyle.DArrow):
         data.tikz_libs.add("shapes.arrows")
         properties.append("double arrow")
+    elif isinstance(bbox_style, BoxStyle.RArrow):
+        data.tikz_libs.add("shapes.arrows")
+        properties.append("single arrow")
     elif isinstance(bbox_style, BoxStyle.Circle):
         properties.append("circle")
     elif isinstance(bbox_style, BoxStyle.Roundtooth):
