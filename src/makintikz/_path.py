@@ -357,7 +357,6 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
         _draw_pathcollection_get_marker(path_collection_data)
 
     _draw_pathcollection_drawoptions(data, path_collection_data, line_data)
-
     plot_cmd = "\\addplot3" if coords.is_3d else "\\addplot"
     content: list[str] = []
 
@@ -383,6 +382,9 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
             content.append(f"table [{table_options_str}]{{")
         else:
             content.append("table{")
+
+        print(path_collection_data.labels)
+        # print(path_collection_data.dd_strings)
 
         plot_table = []
         plot_table.append("  ".join(path_collection_data.labels) + "\n")
@@ -484,18 +486,29 @@ def _draw_pathcollection_get_facecolors(
 
 
 def _draw_pathcollection_add_individual_color(pcd: PathCollectionData) -> None:
+    has_drawcolor = "draw" in pcd.labels
+    has_fillcolor = "fill" in pcd.labels
+
+    col_def = ""
+    scope = ""
+    if has_drawcolor:
+        col_def += "  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n"
+        scope += "draw=thispointdrawcolor,"
+    elif has_fillcolor:
+        col_def += "  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n"
+        scope += "fill=thispointfillcolor,"
+
     if pcd.add_individual_color_code:
         pcd.draw_options.extend(
             [
                 "scatter",
-                "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}",
-                "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}",
+                "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}" if has_drawcolor else "",
+                "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}" if has_fillcolor else "",
                 "scatter/@pre marker code/.code={%\n"
                 "  \\expanded{%\n"
-                "  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n"
-                "  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n"
+                f"{col_def}"
                 "  }%\n"
-                "  \\scope[draw=thispointdrawcolor, fill=thispointfillcolor]%\n"
+                f"  \\scope[{scope}]%\n"
                 "}",
                 "scatter/@post marker code/.code={%\n  \\endscope\n}",
             ]
