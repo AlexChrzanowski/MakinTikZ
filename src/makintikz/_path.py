@@ -383,9 +383,6 @@ def draw_pathcollection(data: TikzData, obj: PathCollection) -> list[str]:
         else:
             content.append("table{")
 
-        print(path_collection_data.labels)
-        # print(path_collection_data.dd_strings)
-
         plot_table = []
         plot_table.append("  ".join(path_collection_data.labels) + "\n")
         plot_table.extend(" ".join(row) + "\n" for row in path_collection_data.dd_strings)
@@ -493,17 +490,23 @@ def _draw_pathcollection_add_individual_color(pcd: PathCollectionData) -> None:
     scope = ""
     if has_drawcolor:
         col_def += "  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n"
-        scope += "draw=thispointdrawcolor,"
-    elif has_fillcolor:
+        scope += "draw=thispointdrawcolor"
+    if has_fillcolor:
         col_def += "  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n"
-        scope += "fill=thispointfillcolor,"
+        if has_drawcolor:
+            scope += ", "
+        scope += "fill=thispointfillcolor"
 
     if pcd.add_individual_color_code:
         pcd.draw_options.extend(
             [
                 "scatter",
-                "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}" if has_drawcolor else "",
-                "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}" if has_fillcolor else "",
+                "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}"
+                if has_drawcolor
+                else "",
+                "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}"
+                if has_fillcolor
+                else "",
                 "scatter/@pre marker code/.code={%\n"
                 "  \\expanded{%\n"
                 f"{col_def}"
