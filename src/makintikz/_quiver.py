@@ -15,9 +15,11 @@ from ._axes import _mpl_cmap2pgf_cmap
 from ._util import _common_texification, get_legend_text, has_legend
 
 if TYPE_CHECKING:
+    from matplotlib.collections import LineCollection
+
     from ._tikzdata import TikzData
 
-QuiverArtist = Quiver | Line3DCollection
+    QuiverArtist = Quiver | LineCollection
 
 MIN_EXTERN_LENGTH = 3
 DOT_TOLERANCE = 1e-12
@@ -37,11 +39,14 @@ def draw_quiver_key(data: TikzData, obj: QuiverKey) -> list[str]:  # noqa: ARG00
     return []
 
 
-def _is_empty_quiver(obj: QuiverArtist, *, is_3d: bool) -> bool:
-    if is_3d:
-        return len(obj._segments3d) == 0  # type: ignore[union-attr]  # noqa: SLF001
+def _is_empty_quiver(obj: QuiverArtist) -> bool:
+    if is_3d_quiver(obj):
+        return len(obj._segments3d) == 0  # type: ignore[attr-defined]  # noqa: SLF001
 
-    obj_xdata = obj.X  # type: ignore[union-attr]
+    if not isinstance(obj, Quiver):
+        return True
+
+    obj_xdata = obj.X
     xdata = (
         obj_xdata
         if isinstance(obj_xdata, Iterable) and isinstance(obj_xdata, Sized)
@@ -73,8 +78,7 @@ def draw_quiver(data: TikzData, obj: QuiverArtist) -> list[str]:
     obj.update_scalarmappable()
     obj.get_children()
 
-    is_3d = is_3d_quiver(obj)
-    if obj.axes is None or data.current_mpl_axes is None or _is_empty_quiver(obj, is_3d=is_3d):
+    if obj.axes is None or data.current_mpl_axes is None or _is_empty_quiver(obj):
         return []
 
     primitive_legend = obj.axes.get_legend()
@@ -92,6 +96,8 @@ def draw_quiver(data: TikzData, obj: QuiverArtist) -> list[str]:
     if has_legend(obj.axes):
         addplot_options.append("forget plot")
 
+    is_3d = is_3d_quiver(obj)
+
     content = ["\\addplot3 "] if is_3d else ["\\addplot "]
     if addplot_options:
         opts = ",\n".join(addplot_options)
@@ -103,7 +109,7 @@ def draw_quiver(data: TikzData, obj: QuiverArtist) -> list[str]:
 
 
 def _process_3d_table(
-    data: TikzData, obj: Line3DCollection, cdata: np.ndarray | None
+    data: TikzData, obj: LineCollection, cdata: np.ndarray | None
 ) -> tuple[str, list[str], list[str], int]:
     col_sep = " "
     sep = data.table_row_sep
@@ -190,10 +196,10 @@ def _process_2d_table(
 
 def _table(data: TikzData, obj: QuiverArtist) -> list[str]:
     cdata = obj.get_array()
-    if is_3d_quiver(obj):
-        table_headers, plot_table, opts, n_arrows = _process_3d_table(data, obj, cdata)
-    else:
+    if isinstance(obj, Quiver):
         table_headers, plot_table, opts, n_arrows = _process_2d_table(data, obj, cdata)
+    else:
+        table_headers, plot_table, opts, n_arrows = _process_3d_table(data, obj, cdata)
 
     if data.table_row_sep != "\n":
         opts.append("row sep=" + data.table_row_sep.strip())
@@ -232,7 +238,7 @@ def _get_quiver_options(data: TikzData, obj: QuiverArtist, qkey: QuiverKey | Non
 
     addplot_options = []
 
-    if not is_3d_quiver(obj):
+    if isinstance(obj, Quiver):
         scale_units = obj.scale_units
         arrow_scaling = get_scale_units_conversion(data, obj, scale_units)
 
@@ -353,7 +359,7 @@ def get_scale_units_conversion(data: TikzData, obj: Quiver, scale_units: str | N
     return abs(scale_arrows)
 
 
-def is_3d_quiver(obj: object) -> TypeGuard[Line3DCollection]:
+def is_3d_quiver(obj: object) -> TypeGuard[LineCollection]:
     """Return True if obj is a Line3DCollection representing a 3D quiver plot."""
     return (
         isinstance(obj, Line3DCollection)
@@ -405,7 +411,7 @@ def _has_3d_quiver_arrowheads(segments: np.ndarray) -> bool:
     return bool(np.all(np.linalg.norm(cross, axis=1) / scale < SYMMETRY_TOLERANCE))
 
 
-def _get_3d_quiver_arrow_count(obj: Line3DCollection, segments: np.ndarray) -> int:
+def _get_3d_quiver_arrow_count(obj: LineCollection, segments: np.ndarray) -> int:
     """Definitively determine N (number of arrows) in a 3D quiver Line3DCollection."""
     n_total = len(segments)
     if n_total == 0:
@@ -417,7 +423,7 @@ def _get_3d_quiver_arrow_count(obj: Line3DCollection, segments: np.ndarray) -> i
         return len(cdata)
 
     # 2. Definitive: explicit per-arrow styling arrays of length N (when N > 1)
-    for prop in (obj.get_edgecolor(), obj.get_linewidths(), obj.get_linestyles()):
+    for prop in (obj.get_edgecolor(), obj.get_linewidths(), obj.get_linestyles()):  # type: ignore[attr-defined]
         if len(prop) > 1 and len(prop) < n_total:
             return len(prop)
 
@@ -429,10 +435,10 @@ def _get_3d_quiver_arrow_count(obj: Line3DCollection, segments: np.ndarray) -> i
 
 
 def _extract_3d_quiver_vectors(
-    obj: Line3DCollection,
+    obj: LineCollection,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Extract (x, y, z, u, v, w) shaft vectors from a 3D quiver Line3DCollection."""
-    segments = np.asarray(obj._segments3d, dtype=float)  # noqa: SLF001
+    segments = np.asarray(obj._segments3d, dtype=np.float64)  # type: ignore[attr-defined]  # noqa: SLF001
     n_arrows = _get_3d_quiver_arrow_count(obj, segments)
     if n_arrows == 0:
         empty = np.array([], dtype=float)
