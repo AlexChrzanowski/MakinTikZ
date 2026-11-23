@@ -4,7 +4,7 @@ import contextlib
 import datetime
 from collections.abc import Iterable, Sized
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from matplotlib.container import ErrorbarContainer
@@ -17,6 +17,7 @@ from ._markers import _mpl_marker2pgfp_marker
 from ._util import _common_texification, get_legend_text, has_legend, transform_to_data_coordinates
 
 if TYPE_CHECKING:
+    from matplotlib.axes import Axes
     from matplotlib.collections import LineCollection
     from matplotlib.lines import Line2D
 
@@ -168,7 +169,7 @@ def _get_errorbar_legend_text(obj: Line2D) -> str | None:
     if legend is None:
         return None
 
-    handles, _ = axes.get_legend_handles_labels()
+    handles, _ = cast("Axes", axes).get_legend_handles_labels()
     legend_texts = [text.get_text() for text in legend.texts]
 
     for index, handle in enumerate(handles):
