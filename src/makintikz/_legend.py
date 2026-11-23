@@ -88,6 +88,15 @@ def _get_legend_style(data: TikzData, obj: Legend) -> list[str]:
     _legend_edgecolor(data, obj, legend_style)
     _legend_facecolor(data, obj, legend_style)
 
+    # Preserve the legend text color when Matplotlib uses a nondefault color.
+    # PGFPlots supports a single text color for the entire legend.
+    text_colors = {to_rgba(text.get_color()) for text in obj.get_texts()}
+    if len(text_colors) == 1:
+        text_color = next(iter(text_colors))
+        xcolor, _ = mycol.mpl_color2xcolor(data, text_color)
+        if xcolor != "black":
+            legend_style.append(f"text={xcolor}")
+
     return legend_style
 
 
