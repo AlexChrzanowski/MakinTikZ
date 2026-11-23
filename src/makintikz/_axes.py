@@ -832,8 +832,8 @@ class MyAxes:
         tick_options = ""
         minor_or_major = "major" if is_minor is False else "minor"
         rcparams_key = axis + "tick." + minor_or_major + "."
-        length = plt.rcParams[rcparams_key + "size"] if "length" not in params else params["length"]  # type: ignore[index]
-        width = plt.rcParams[rcparams_key + "width"] if "width" not in params else params["width"]  # type: ignore[index]
+        length = plt.rcParams[rcparams_key + "size"] if "length" not in params else params["length"]
+        width = plt.rcParams[rcparams_key + "width"] if "width" not in params else params["width"]
         # Updates tick length and tick width
         tick_options += f"/pgfplots/{minor_or_major} tick length={length}pt, "
         tick_options += f"line width={width}pt, "
@@ -847,7 +847,7 @@ class MyAxes:
         opposite_axis = "x" if "y" in axis else "y"
         anchor = "north" if "x" in axis else "east"
         rcparams_key = axis + "tick.major."
-        length = plt.rcParams[rcparams_key + "size"] if "length" not in params else params["length"]  # type: ignore[index]
+        length = plt.rcParams[rcparams_key + "size"] if "length" not in params else params["length"]
 
         # Shifts label options to account for tick length
         # removes initial offset
