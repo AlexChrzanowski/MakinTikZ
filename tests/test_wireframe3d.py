@@ -1,10 +1,15 @@
 """Regression tests for three-dimensional wireframe export."""
 
+from typing import TYPE_CHECKING, cast
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 import makintikz
+
+if TYPE_CHECKING:
+    from mpl_toolkits.mplot3d import Axes3D
 
 mpl.use("Agg")
 
@@ -16,7 +21,7 @@ def test_wireframe3d() -> None:
     zz = np.sin(xx) * np.cos(yy)
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    ax = cast("Axes3D", fig.add_subplot(111, projection="3d"))
     ax.plot_wireframe(xx, yy, zz, color="blue")
 
     code = makintikz.get_tikz_code(
@@ -39,7 +44,7 @@ def test_wireframe3d_flat_color_and_width_arrays() -> None:
     zz = xx**2 + yy**2
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    ax = cast("Axes3D", fig.add_subplot(111, projection="3d"))
     collection = ax.plot_wireframe(xx, yy, zz)
     collection.set_color(np.array([0.0, 0.5, 0.0, 1.0]))
     collection.set_linewidth(1.75)
