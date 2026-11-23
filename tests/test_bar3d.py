@@ -1,15 +1,20 @@
 """Regression tests for basic three-dimensional bar export."""
 
+from typing import TYPE_CHECKING, cast
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 import makintikz
 
+if TYPE_CHECKING:
+    from mpl_toolkits.mplot3d import Axes3D
+
 
 def test_bar3d_rectangular_patches() -> None:
     """Export two bars, each made of six four-corner rectangular faces."""
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    ax = cast("Axes3D", fig.add_subplot(111, projection="3d"))
     try:
         bars = ax.bar3d(
             [0, 1],
