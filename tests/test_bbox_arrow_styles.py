@@ -1,8 +1,8 @@
-import matplotlib
-matplotlib.use("Agg")
+"""Regression tests for text bounding-box arrow styles."""
 
 import matplotlib.pyplot as plt
 import pytest
+
 import makintikz
 
 
@@ -14,12 +14,18 @@ import makintikz
         ("darrow", "double arrow", "single arrow"),
     ],
 )
-def test_bbox_arrow_style(boxstyle, expected, unexpected):
+def test_bbox_arrow_style(
+    boxstyle: str,
+    expected: str,
+    unexpected: str,
+) -> None:
+    """Verify that arrow box styles generate the correct TikZ options."""
     fig, ax = plt.subplots()
-
     try:
         ax.text(
-            0.5, 0.5, "Arrow",
+            0.5,
+            0.5,
+            "Arrow",
             bbox={"boxstyle": boxstyle},
         )
 
