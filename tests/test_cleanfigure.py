@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import PolyCollection
 from matplotlib.ticker import FormatStrFormatter, LinearLocator
 from mpl_toolkits.mplot3d import axes3d
+
 import makintikz
 from makintikz import clean_figure, get_tikz_code
 
