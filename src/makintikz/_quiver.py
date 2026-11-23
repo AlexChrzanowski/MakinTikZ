@@ -5,13 +5,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeGuard
 
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.quiver import Quiver, QuiverKey
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 from . import _color as mycol
 from . import _files
-from ._axes import _mpl_cmap2pgf_cmap
+from ._axes import _find_associated_colorbar, _mpl_cmap2pgf_cmap
 from ._util import _common_texification, get_legend_text, has_legend
 
 if TYPE_CHECKING:
@@ -88,7 +89,8 @@ def draw_quiver(data: TikzData, obj: QuiverArtist) -> list[str]:
     qkey = next(
         (a for a in data.current_mpl_axes.artists if isinstance(a, QuiverKey) and obj == a.Q), None
     )
-    addplot_options = _get_quiver_options(data, obj, qkey)
+    table_content, n_arrows = _table(data, obj)
+    addplot_options = _get_quiver_options(data, obj, qkey, n_arrows)
 
     legend_text = get_legend_text(obj)
     # Check if a line is in a legend and forget it if not.
@@ -103,7 +105,7 @@ def draw_quiver(data: TikzData, obj: QuiverArtist) -> list[str]:
         opts = ",\n".join(addplot_options)
         content.append(f"[\n{opts}\n]\n")
 
-    content += _table(data, obj)
+    content += table_content
     content += _append_quiver_legend(data, obj, legend_text, primitive_legend)
     return content
 
@@ -115,6 +117,16 @@ def _process_3d_table(
     sep = data.table_row_sep
     ff = data.float_format
     x, y, z, udata, vdata, wdata = _extract_3d_quiver_vectors(obj)
+
+    if cdata is None:
+        explicit_colors = _get_explicit_arrow_colors(obj, x.size)
+        if explicit_colors is not None:
+            recovered = _recover_colordata_from_colorbar(obj, explicit_colors)
+            cdata = (
+                recovered
+                if recovered is not None
+                else np.linspace(0, 1000, x.size, dtype=np.float64)
+            )
 
     if cdata is not None:
         cdata_flat = np.asarray(cdata).ravel()
@@ -165,6 +177,16 @@ def _process_2d_table(
     udata = np.array(obj.U)
     vdata = np.array(obj.V)
 
+    if cdata is None:
+        explicit_colors = _get_explicit_arrow_colors(obj, x.size)
+        if explicit_colors is not None:
+            recovered = _recover_colordata_from_colorbar(obj, explicit_colors)
+            cdata = (
+                recovered
+                if recovered is not None
+                else np.linspace(0, 1000, x.size, dtype=np.float64)
+            )
+
     arrow_scaling = get_scale_units_conversion(data, obj, obj.scale_units)
     pivot_factor = 1.0 if obj.pivot == "tip" else 0.5 if obj.pivot == "middle" else 0.0
     if pivot_factor != 0.0:
@@ -194,7 +216,7 @@ def _process_2d_table(
     return headers, rows, opts, x.size
 
 
-def _table(data: TikzData, obj: QuiverArtist) -> list[str]:
+def _table(data: TikzData, obj: QuiverArtist) -> tuple[list[str], int]:
     cdata = obj.get_array()
     if isinstance(obj, Quiver):
         table_headers, plot_table, opts, n_arrows = _process_2d_table(data, obj, cdata)
@@ -229,10 +251,47 @@ def _table(data: TikzData, obj: QuiverArtist) -> list[str]:
         content.extend(plot_table)
         content.append("};\n")
 
-    return content
+    return content, n_arrows
 
 
-def _get_quiver_options(data: TikzData, obj: QuiverArtist, qkey: QuiverKey | None) -> list[str]:  # noqa: ARG001
+def _append_quiver_color_options(
+    data: TikzData, obj: QuiverArtist, addplot_options: list[str], n_arrows: int
+) -> None:
+    has_cmap = obj.get_array() is not None
+    explicit_colors = _get_explicit_arrow_colors(obj, n_arrows)
+
+    if has_cmap and obj.get_cmap():
+        mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(obj.get_cmap(), data)
+        addplot_options.append("colormap" + ("=" if is_custom_cmap else "/") + mycolormap)
+        if obj.norm is not None:
+            if obj.norm.vmin is not None:
+                addplot_options.append(f"point meta min={obj.norm.vmin:{data.float_format}}")
+            if obj.norm.vmax is not None:
+                addplot_options.append(f"point meta max={obj.norm.vmax:{data.float_format}}")
+        addplot_options.append("quiver/every arrow/.append style={color=mapped color}")
+    elif explicit_colors is not None:
+        if _recover_colordata_from_colorbar(obj, explicit_colors) is None:
+            positions = np.linspace(0, 1000, len(explicit_colors)).round().astype(int)
+            rgb_entries = [
+                f"rgb255({pos}pt)=({round(c[0] * 255)},{round(c[1] * 255)},{round(c[2] * 255)})"
+                for pos, c in zip(positions, explicit_colors, strict=True)
+            ]
+            cmap_str = "{quivercmap}{[1pt]\n  " + ";\n  ".join(rgb_entries) + "\n}"
+            addplot_options.append(f"colormap={cmap_str}")
+            addplot_options.append("point meta min=0")
+            addplot_options.append("point meta max=1000")
+        addplot_options.append("quiver/every arrow/.append style={color=mapped color}")
+    else:
+        line_xcolor = _get_linecolor_quiver(data, obj)
+        addplot_options.append(line_xcolor)
+
+
+def _get_quiver_options(
+    data: TikzData,
+    obj: QuiverArtist,
+    qkey: QuiverKey | None,  # noqa: ARG001
+    n_arrows: int,
+) -> list[str]:
     # qkey argument is currently unused
     # qkey still needs to be implemented
 
@@ -277,32 +336,56 @@ def _get_quiver_options(data: TikzData, obj: QuiverArtist, qkey: QuiverKey | Non
         )
 
     # quiver options, including arrow and arrow head scaling
-    has_cmap = obj.get_array() is not None
-    if has_cmap:
+    has_colordata = (
+        obj.get_array() is not None or _get_explicit_arrow_colors(obj, n_arrows) is not None
+    )
+    if has_colordata:
         addplot_options.append("point meta=\\thisrow{colordata}")
     elif not is_3d_quiver(obj):
         addplot_options.append("point meta={sqrt((\\thisrow{u})^2 + (\\thisrow{v})^2)}")
 
     addplot_options.append(f"quiver={{\n{quiver_options}}}")
-
-    if has_cmap and obj.get_cmap():
-        mycolormap, is_custom_cmap = _mpl_cmap2pgf_cmap(obj.get_cmap(), data)
-        addplot_options.append("colormap" + ("=" if is_custom_cmap else "/") + mycolormap)
-        if obj.norm is not None:
-            if obj.norm.vmin is not None:
-                addplot_options.append(f"point meta min={obj.norm.vmin:{data.float_format}}")
-            if obj.norm.vmax is not None:
-                addplot_options.append(f"point meta max={obj.norm.vmax:{data.float_format}}")
-        addplot_options.append("quiver/every arrow/.append style={color=mapped color}")
-    else:
-        line_xcolor = _get_linecolor_quiver(data, obj)
-        addplot_options.append(line_xcolor)
+    _append_quiver_color_options(data, obj, addplot_options, n_arrows)
 
     alpha = obj.get_alpha()
     if alpha is not None:
         addplot_options.append(f"opacity={alpha}")
 
     return addplot_options
+
+
+def _recover_colordata_from_colorbar(
+    obj: QuiverArtist, explicit_colors: np.ndarray
+) -> np.ndarray | None:
+    """Map per-arrow RGBA colors back to scalar values using the axes' colorbar mappable."""
+    if not isinstance(obj.axes, Axes):
+        return None
+    cbar = _find_associated_colorbar(obj.axes)
+    if cbar is None:
+        return None
+
+    vmin, vmax = cbar.mappable.get_clim()
+    sample_vals = np.linspace(vmin, vmax, 1024)
+    lut_rgb = np.asarray(cbar.mappable.to_rgba(sample_vals))[:, :3]
+    arrow_rgb = explicit_colors[:, :3]
+
+    # Nearest-neighbor lookup in RGB space
+    diffs = arrow_rgb[:, None, :] - lut_rgb[None, :, :]
+    nearest_idx = np.argmin(np.sum(diffs * diffs, axis=2), axis=1)
+    return sample_vals[nearest_idx]
+
+
+def _get_explicit_arrow_colors(obj: QuiverArtist, n_arrows: int) -> np.ndarray | None:
+    """Return (N, 4) RGBA array if per-arrow colors were passed via `colors=`."""
+    if obj.get_array() is not None or n_arrows <= 1:
+        return None
+    colors = np.asarray(
+        obj.get_edgecolor() if is_3d_quiver(obj) else obj.get_facecolor(),
+        dtype=np.float64,
+    )
+    if colors.ndim == 2 and len(colors) >= n_arrows:  # noqa: PLR2004
+        return colors[:n_arrows]
+    return None
 
 
 def _get_linecolor_quiver(data: TikzData, obj: QuiverArtist) -> str:
