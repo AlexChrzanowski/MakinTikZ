@@ -506,20 +506,39 @@ class MyAxes:
             self.data.pgfplots_libs.add("groupplots")
 
     def _set_axis_line_styles(self) -> None:
+        default_linewidth = plt.rcParams.get("axes.linewidth", 0.8)
+
         if self.is_3d:
             # Axes3D stores boundary lines on the individual 3D axis objects
             line = getattr(self.obj.xaxis, "line", None)
             if line is not None:
                 axcol = line.get_color()
+                linewidth = line.get_linewidth()
             else:
                 axcol = plt.rcParams.get("axes.edgecolor", "black")
+                linewidth = default_linewidth
         else:
             # Assume that the bottom edge color is the color of the entire box.
-            axcol = self.obj.spines["bottom"].get_edgecolor()
+            bottom_spine = self.obj.spines.get("bottom")
+            if bottom_spine is not None:
+                axcol = bottom_spine.get_edgecolor()
+                linewidth = bottom_spine.get_linewidth()
+            else:
+                axcol = plt.rcParams.get("axes.edgecolor", "black")
+                linewidth = default_linewidth
 
         col, _ = _color.mpl_color2xcolor(self.data, axcol)
+
+        style_parts = []
+
         if col != "black":
-            self.data.current_axis_options.add(f"axis line style={{{col}}}")
+            style_parts.append(col)
+
+        if not np.isclose(linewidth, default_linewidth):
+            style_parts.append(f"line width={linewidth:g}pt")
+
+        if style_parts:
+            self.data.current_axis_options.add(f"axis line style={{{','.join(style_parts)}}}")
 
     def _set_background_color(self) -> None:
         bgcolor = self.obj.get_facecolor()
