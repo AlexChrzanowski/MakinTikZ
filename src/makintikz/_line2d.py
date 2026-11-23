@@ -299,6 +299,8 @@ def _marker_options(data: TikzData, marker_data: MarkerData, addplot_options: li
     addplot_options.append(f"mark options={{{opts}}}")
 
 
+# Minimum number of points required before externalizing table data to a .dat file
+# when externalize_tables=True (avoids creating separate files for tiny 1-2 row tables).
 MIN_EXTERN_LENGTH = 3
 DATE_FMT = "%Y-%m-%d %H:%M"
 

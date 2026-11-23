@@ -22,9 +22,11 @@ if TYPE_CHECKING:
 
     QuiverArtist = Quiver | LineCollection
 
+# Minimum number of arrows required before externalizing table data to a .dat file
+# when externalize_tables=True (avoids creating separate files for tiny 1-2 row tables).
 MIN_EXTERN_LENGTH = 3
-DOT_TOLERANCE = 1e-12
-SYMMETRY_TOLERANCE = 1e-6
+DOT_TOLERANCE = 1e-12  # To deal with floating point calculation errors
+SYMMETRY_TOLERANCE = 1e-6  # To deal with floating point calculation errors
 
 
 @dataclass
