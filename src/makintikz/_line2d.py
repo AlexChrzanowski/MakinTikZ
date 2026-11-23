@@ -467,10 +467,8 @@ def _get_xy_data(data: TikzData, obj: Line2D) -> tuple[np.ndarray, np.ndarray]:
 
     # matplotlib allows plotting of data containing `astropy.units`, but they will break
     # the formatted string here. Try to strip the units from the data.
-    with contextlib.suppress(AttributeError):
-        xdata = xdata.value
-    with contextlib.suppress(AttributeError):
-        ydata = ydata.value
+    xdata = getattr(xdata, "value", xdata)
+    ydata = getattr(ydata, "value", ydata)
 
     return xdata, ydata
 
