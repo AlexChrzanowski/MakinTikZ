@@ -17,14 +17,16 @@ from matplotlib.image import AxesImage
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.quiver import Quiver, QuiverKey
 from matplotlib.spines import Spine
 from matplotlib.text import Text
+from matplotlib.ticker import ScalarFormatter
 from typing_extensions import NotRequired, Unpack
 
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
 
-from . import _axes, _legend, _line2d, _patch, _path, _text, _util
+from . import _axes, _legend, _line2d, _patch, _path, _quiver, _text, _util
 from . import _image as img
 from . import _quadmesh as qmsh
 from .__about__ import __version__
@@ -92,6 +94,7 @@ def get_tikz_code(  # noqa: PLR0913
     table_row_sep: str = "\n",
     flavor: str = "latex",
     legend_title_hspace: str = "-.6cm",
+    power_limits: list[int] | None = None,
 ) -> str:
     r"""Main function that converts a matplotlib Figure to tikz.
 
@@ -187,6 +190,13 @@ def get_tikz_code(  # noqa: PLR0913
     :param table_row_sep: Row separator for table data. Default is ```"\\n"```.
     :type table_row_sep: str
 
+    :param legend_title_hspace:
+        :type legend_title_hspace: str
+
+    :param power_limits: Sets boundaries for plain notation, if using style='sci'.
+                         Format as [lower, upper].
+        :type power_limits: list[int]
+
     :param flavor: TeX flavor of the output code.
                    Supported are ``"latex"`` and``"context"``.
                    Default is ``"latex"``.
@@ -234,6 +244,7 @@ def get_tikz_code(  # noqa: PLR0913
         data.extra_tikzpicture_parameters = set(extra_tikzpicture_parameters)
     if extra_lines_start:
         data.extra_lines_start = extra_lines_start
+    data.power_limits = power_limits
 
     _set_filepath(data, filepath)
 
@@ -327,6 +338,10 @@ def _generate_code(data: TikzData, content: list) -> str:
     if coldefs:
         code += "\n".join(coldefs) + "\n\n"
 
+    pgfkeys = _get_pgfkeys(data)
+    if pgfkeys:
+        code += pgfkeys + "\n\n"
+
     code += "".join(content)
 
     if data.wrap and data.add_axis_environment:
@@ -349,6 +364,28 @@ def _get_color_definitions(data: TikzData) -> list:
     sorted_keys = sorted(data.custom_colors.keys(), key=lambda x: x.lower())
     d = {key: data.custom_colors[key] for key in sorted_keys}
     return [f"\\definecolor{{{name}}}{{{space}}}{{{val}}}" for name, (space, val) in d.items()]
+
+
+def _get_pgfkeys(data: TikzData) -> str:
+    """Returns pgfkeys for scientific notation limits."""
+    axes = data.current_mpl_axes
+    if not data.strict or axes is None:
+        return ""
+    formatter = axes.xaxis.get_major_formatter()
+    if formatter is None or not isinstance(formatter, ScalarFormatter):
+        return ""
+    # matplotlib ticklabel_format(style="plain") sets _scientific=False.
+    if bool(getattr(formatter, "_scientific", True)):
+        if data.power_limits is not None:
+            limits = data.power_limits
+        else:
+            limits = getattr(formatter, "_powerlimits", [])
+        if len(limits) > 0:
+            return (
+                f"\\pgfkeys{{/pgf/number format/std={limits[0]}:{limits[1]}"
+                f", /pgf/number format/precision={abs(limits[0])}}}"
+            )
+    return ""
 
 
 def _print_pgfplot_libs_message(data: TikzData) -> None:
@@ -388,6 +425,8 @@ def _draw_collection(data: TikzData, child: Collection) -> list[str]:
         return _line2d.draw_linecollection(data, child)
     if isinstance(child, QuadMesh):
         return qmsh.draw_quadmesh(data, child)
+    if isinstance(child, Quiver):
+        return _quiver.draw_quiver(data, child)
     return _patch.draw_patchcollection(data, child)
 
 
@@ -429,6 +468,22 @@ def _should_skip_child(obj: Artist, child: Artist) -> bool:
     return type(child).__name__ == "_WCSAxesArtist"
 
 
+def _axes_geom_index(ax: Axes) -> int:
+    """Grid position (0-based) for an Axes with a subplotspec; -1 otherwise."""
+    subplotspec = ax.get_subplotspec()
+    if subplotspec is None:
+        return -1
+    return int(subplotspec.get_topmost_subplotspec().get_geometry()[2])
+
+
+def _sort_children_by_subplot_index(children: list[Artist]) -> list[Artist]:
+    """Sort children by subplot index, with non-Axes children first."""
+    return sorted(
+        children,
+        key=lambda c: _axes_geom_index(c) if isinstance(c, Axes) else -1,
+    )
+
+
 def _recurse(data: TikzData, obj: Artist) -> list:
     """Iterates over all children of the current object and gathers the contents.
 
@@ -439,7 +494,7 @@ def _recurse(data: TikzData, obj: Artist) -> list:
     if isinstance(obj, Figure):
         _set_default_axis_dimensions_from_figure(data, obj)
 
-    for child in obj.get_children():
+    for child in _sort_children_by_subplot_index(obj.get_children()):
         if _should_skip_child(obj, child):
             continue
 
@@ -458,6 +513,7 @@ def _recurse(data: TikzData, obj: Artist) -> list:
                 (Patch, _patch.draw_patch),
                 (Collection, _draw_collection),
                 (Text, _text.draw_text),
+                (QuiverKey, _quiver.draw_quiver_key),
             ):
                 if isinstance(child, child_type):
                     content.extend(process_func(data, child), child.get_zorder())  # type: ignore[arg-type]
