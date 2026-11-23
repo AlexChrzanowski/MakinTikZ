@@ -768,7 +768,7 @@ def _get_draw_options_hatch(data: TikzData, line_data: LineData) -> list[str]:
     # inherit the patch edge color.
     hc = getattr(line_data.obj, "_hatch_color", "edge")
 
-    if hc == "edge":
+    if isinstance(hc, str) and hc == "edge":
         if (
             line_data.ec_name is not None
             and line_data.ec_rgba is not None
@@ -779,6 +779,8 @@ def _get_draw_options_hatch(data: TikzData, line_data: LineData) -> list[str]:
             h_col, h_rgba = "black", np.array([0, 0, 0, 1])
     else:
         h_col, h_rgba = _color.mpl_color2xcolor(data, hc)
+        if h_rgba[3] == 0 and line_data.ec_rgba is not None and line_data.ec_rgba[3] == 0:
+            h_col, h_rgba = "black", np.array([0, 0, 0, 1])
 
     if h_rgba[3] > 0:
         return _mpl_hatch2pgfp_pattern(data, line_data.hatch, h_col, h_rgba)
