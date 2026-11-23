@@ -797,6 +797,10 @@ def mpl_linewidth2pgfp_linewidth(data: TikzData, line_width: float) -> str | Non
     matches best with the default mpl style.
     Keep the line width in units of decipoint to make sure we stay in integers.
     """
+    if data.strict:
+        ff = data.float_format
+        return f"line width={line_width:{ff}}pt"
+
     line_width_decipoint = line_width * 4
     try:
         # https://github.com/pgf-tikz/pgf/blob/e9c22dc9fe48f975b7fdb32181f03090b3747499/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex#L1574
