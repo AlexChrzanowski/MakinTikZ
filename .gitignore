@@ -16,3 +16,5 @@ mytikz.tex
 reports/
 test.tex
 venv/
+.venv/
+*.ipynb_checkpoints
