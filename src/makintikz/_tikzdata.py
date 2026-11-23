@@ -33,6 +33,7 @@ class TikzData:
     table_row_sep: str = "\n"
     base_name: str = ""
     current_axis_title: str = ""
+    power_limits: list[int] | None = None
 
     rel_data_path: Path | None = None
     output_dir: Path = Path()
@@ -96,8 +97,8 @@ class Flavors(enum.Enum):
 
     def preamble(self, data: TikzData | None = None) -> str:
         if data is None:
-            pgfplotslibs = "groupplots,dateplot"
-            tikzlibs = "patterns,shapes.arrows"
+            pgfplotslibs = "groupplots,dateplot,polar"
+            tikzlibs = "patterns,shapes.arrows,arrows.meta"
         else:
             pgfplotslibs = ",".join(data.pgfplots_libs)
             tikzlibs = ",".join(data.tikz_libs)

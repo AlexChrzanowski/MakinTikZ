@@ -57,6 +57,6 @@ def test_wcs_axes() -> None:
     assert "\\begin{tikzpicture}" in tikz_code
     assert "\\end{tikzpicture}" in tikz_code
     # Check that image is included
-    assert "\\addplot graphics" in tikz_code
+    assert "\\addplot [forget plot] graphics" in tikz_code
 
     plt.close("all")

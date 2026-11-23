@@ -98,7 +98,7 @@ def draw_image(data: TikzData, obj: AxesImage) -> list[str]:
 
     # Add the image plot command
     content.append(
-        "\\addplot graphics [includegraphics cmd=\\pgfimage,"
+        "\\addplot [forget plot] graphics [includegraphics cmd=\\pgfimage,"
         f"xmin={extent[0]:{ff}}, xmax={extent[1]:{ff}}, "
         f"ymin={extent[2]:{ff}}, ymax={extent[3]:{ff}}] {{{posix_filepath}}};\n"
     )
