@@ -5,7 +5,7 @@
 \begin{axis}[
 axis equal image,
 colorbar,
-colorbar style={ytick={-1,0,1},yticklabels={< -1,0,> 1},ylabel={}},
+colorbar style={ytick={-1,0,1},yticklabels={< -1,0,> 1},scale ticks below exponent=-4,scale ticks above exponent=5,ylabel={}},
 colormap/viridis,
 height=4.8in,
 point meta max=1,
@@ -22,7 +22,7 @@ y grid style={darkgray176},
 ymin=-0.5, ymax=249.5,
 ytick style={color=black}
 ]
-\addplot graphics [includegraphics cmd=\pgfimage,xmin=-0.5, xmax=249.5, ymin=249.5, ymax=-0.5] {tmp-000.png};
+\addplot [forget plot] graphics [includegraphics cmd=\pgfimage,xmin=-0.5, xmax=249.5, ymin=249.5, ymax=-0.5] {tmp-000.png};
 \end{axis}
 
 \end{tikzpicture}
