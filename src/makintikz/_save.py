@@ -419,14 +419,14 @@ class _ContentManager:
 
 
 def _draw_collection(data: TikzData, child: Collection) -> list[str]:
+    if isinstance(child, Quiver) or _quiver.is_3d_quiver(child):
+        return _quiver.draw_quiver(data, child)
     if isinstance(child, PathCollection):
         return _path.draw_pathcollection(data, child)
     if isinstance(child, LineCollection):
         return _line2d.draw_linecollection(data, child)
     if isinstance(child, QuadMesh):
         return qmsh.draw_quadmesh(data, child)
-    if isinstance(child, Quiver):
-        return _quiver.draw_quiver(data, child)
     return _patch.draw_patchcollection(data, child)
 
 
