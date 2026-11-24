@@ -132,7 +132,7 @@ Tweaking the plot is straightforward and can be done as part of your TeX work fl
 great examples of how to make your plot look even better.
 
 Of course, not all figures produced by matplotlib can be converted without error.
-Notably, [3D plots don't work](https://github.com/matplotlib/matplotlib/issues/7243).
+Notably, 3D support is currently limited to scatter and line plots.
 
 
 ## Installation
