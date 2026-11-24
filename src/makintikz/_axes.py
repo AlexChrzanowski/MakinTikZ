@@ -681,7 +681,7 @@ class MyAxes:
         powlimits = _get_powerlimits(self.obj)
         self.data.power_limits = powlimits
 
-        if isinstance(self.obj, AxesGrid):
+        if isinstance(self.obj, AxesGrid) and self.data.strict:
             # Forces a redraw of the canvas so all ticks are rendered correctly
             # Otherwise AxesGrid/ImageGrid doesn't return correct tick values/labels
             self.obj.figure.canvas.draw()
