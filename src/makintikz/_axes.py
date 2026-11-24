@@ -676,12 +676,15 @@ class MyAxes:
     def _get_ticks(self) -> None:
         force_x_ticklabels = _uses_plain_scalar_tick_format(self.obj, "x")
         force_y_ticklabels = _uses_plain_scalar_tick_format(self.obj, "y")
-
+        # Limits for plain notation. If the exponent (order of magnitude) of the ticks
+        # are below the lower limit or above the upper limit, then uses sci notation.
         powlimits = _get_powerlimits(self.obj)
         self.data.power_limits = powlimits
 
-        # Limits for plain notation. If the exponent (order of magnitude) of the ticks
-        # are below the lower limit or above the upper limit, then uses sci notation.
+        if isinstance(self.obj, AxesGrid) and self.data.strict:
+            # Forces a redraw of the canvas so all ticks are rendered correctly
+            # Otherwise AxesGrid/ImageGrid doesn't return correct tick values/labels
+            self.obj.figure.canvas.draw()
 
         self.data.current_axis_options.update(
             _get_ticks(
