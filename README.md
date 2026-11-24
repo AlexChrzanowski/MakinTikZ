@@ -137,12 +137,17 @@ Notably, 3D support is currently limited to scatter and line plots.
 ## Version 2.0.0 is Here!
 **2D Plots**
 * ```new``` support for polar plots has now been implemented
+  ![](https://raw.githubusercontent.com/AlexChrzanowski/makintikz/refs/heads/main/polarPlot.png)
 * ```new``` support for quiver plots has now been implemented
+  ![](https://raw.githubusercontent.com/AlexChrzanowski/makintikz/refs/heads/main/quiverPlot.png)
 
 
 **3D Plots** - Previously unimplemented, 3D plots have now been addressed!
+![](https://raw.githubusercontent.com/AlexChrzanowski/makintikz/refs/heads/main/process.png)
 * ```new``` support for 3D scatter plots has now been implemented
 * ```new``` support for 3D line plots has now been implemented
+* ```new``` support for 3D mesh plots has now been implemented
+* ```new``` support for 3D surface plots has now been implemented
 
 
 ## Installation
