@@ -21,12 +21,13 @@ from matplotlib.quiver import Quiver, QuiverKey
 from matplotlib.spines import Spine
 from matplotlib.text import Text
 from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from typing_extensions import NotRequired, Unpack
 
 if TYPE_CHECKING:
     from matplotlib.artist import Artist
 
-from . import _axes, _legend, _line2d, _patch, _path, _quiver, _text, _util
+from . import _axes, _legend, _line2d, _mesh3d, _patch, _path, _quiver, _text, _util
 from . import _image as img
 from . import _quadmesh as qmsh
 from .__about__ import __version__
@@ -419,6 +420,8 @@ class _ContentManager:
 
 
 def _draw_collection(data: TikzData, child: Collection) -> list[str]:
+    if isinstance(child, Line3DCollection):
+        return _mesh3d.draw_mesh3d(data, child)
     if isinstance(child, PathCollection):
         return _path.draw_pathcollection(data, child)
     if isinstance(child, LineCollection):
