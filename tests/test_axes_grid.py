@@ -1,4 +1,4 @@
-"""Test scatter plot."""
+"""Test AxisGrid/ImageGrid."""
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
