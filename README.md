@@ -148,8 +148,6 @@ Notably, 3D support is currently limited to scatter and line plots.
 **3D Plots** - Previously unimplemented, 3D plots have now been addressed!
 * ```new``` support for 3D scatter plots has now been added
 * ```new``` support for 3D line plots has now been added
-* ```new``` support for 3D mesh plots has now been added
-* ```new``` support for 3D surface plots has now been added
 
   > ![](https://raw.githubusercontent.com/AlexChrzanowski/makintikz/refs/heads/main/process.png)
 
