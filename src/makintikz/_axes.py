@@ -1528,6 +1528,19 @@ def _find_associated_colorbar(obj: Axes) -> Colorbar | None:
             # if fetch was successful, cbar contains
             # (reference to colorbar, reference to axis containing colorbar)
             return cbar
+
+    # Fallback: check figure axes for colorbars attached via a standalone ScalarMappable
+    fig = obj.figure
+    if fig is not None:
+        for ax in fig.axes:
+            if ax is obj:
+                continue
+            cbar = getattr(ax, "_colorbar", None)
+            if isinstance(cbar, Colorbar):
+                info = getattr(ax, "_colorbar_info", {})
+                if obj in info.get("parents", ()):
+                    return cbar
+
     return None
 
 
