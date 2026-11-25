@@ -9,6 +9,7 @@ from matplotlib.collections import PolyCollection
 from matplotlib.ticker import FormatStrFormatter, LinearLocator
 from mpl_toolkits.mplot3d import axes3d
 
+import makintikz
 from makintikz import clean_figure, get_tikz_code
 
 mpl.use("Agg")
@@ -690,4 +691,13 @@ class TestLogscale:
 def test_memory() -> None:
     plt.plot(np.arange(100000))
     clean_figure()
+    plt.close("all")
+
+
+def test_single_point_scatter_clean_figure() -> None:
+    plt.figure()
+    plt.scatter([1], [1])
+
+    makintikz.clean_figure()
+
     plt.close("all")
