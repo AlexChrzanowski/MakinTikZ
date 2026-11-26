@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.axes import Subplot
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import FormatStrFormatter, ScalarFormatter
 from mpl_toolkits.axes_grid1.mpl_axes import Axes as AxesGrid
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
@@ -1167,7 +1167,7 @@ def _get_ticks(
 
 
 def _uses_plain_scalar_tick_format(obj: Axes, x_or_y_or_z: str) -> bool:
-    """Return True when ticklabel_format(style='plain') is active on this axis."""
+    """Return True when explicit Matplotlib tick labels must be preserved."""
     axis = (
         obj.xaxis
         if x_or_y_or_z == "x"
@@ -1177,10 +1177,16 @@ def _uses_plain_scalar_tick_format(obj: Axes, x_or_y_or_z: str) -> bool:
     )
 
     formatter = axis.get_major_formatter()
-    if not isinstance(formatter, ScalarFormatter):
-        return False
+
+    # Explicit printf-style formatting, e.g. FormatStrFormatter("%.3f").
+    if isinstance(formatter, FormatStrFormatter):
+        return True
+
     # matplotlib ticklabel_format(style="plain") sets _scientific=False.
-    return not bool(getattr(formatter, "_scientific", True))
+    if isinstance(formatter, ScalarFormatter):
+        return not bool(getattr(formatter, "_scientific", True))
+
+    return False
 
 
 def _is_label_required(ticks: list | np.ndarray, ticklabels: list) -> bool:
