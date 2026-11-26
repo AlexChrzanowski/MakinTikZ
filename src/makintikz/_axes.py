@@ -1127,6 +1127,15 @@ def _get_ticks(
     is_label_required = not is_minor and (
         force_label_required or _is_label_required(ticks, ticklabels)
     )
+    # In strict mode, preserve Matplotlib's displayed decimal precision.
+    # PGFPlots otherwise removes significant trailing zeros (e.g. 0.0010).
+    if data.strict and not is_minor and not is_label_required:
+        is_label_required = any(
+            re.fullmatch(r"[+-]?\d+\.\d*0", label.get_text())
+            for label in ticklabels
+            if label.get_text()
+        )
+
     pgfplots_ticklabels = _get_pgfplots_ticklabels(ticklabels)
 
     # PGFPlots does not support custom labels for minor ticks (e.g., "minor xticklabels"
